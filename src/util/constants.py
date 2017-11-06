@@ -1,0 +1,11 @@
+DIRECTORY = "C:\MWD Project\phase1_dataset\\"
+TAG = 'tag'
+NORMALIZATION_VALUE = 1
+ITERATIONS = 7
+RANDOM_STATE = 42
+actorTagsSpacePasses = 1000
+genreTagsSpacePasses = 1000
+genreActorSpacePasses = 1000
+RANK = 5
+EPSILON = 0.0000001
+ALPHA = 0.85
