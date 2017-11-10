@@ -56,44 +56,45 @@ id_tag_map = dict()
 actor_actorid_map = defaultdict(str)
 movie_genre_map = defaultdict(set)
 movieid_name_map = defaultdict()
+
+user_rated_or_tagged_date_map = defaultdict(set)
+
 def create_actor_actorid_map():
     for row in actor_info_df.itertuples():
         actor_actorid_map[row.id]=row.name
 
 def vectors():
-	global max_rank
-	global min_rank
-	global tag_count
-	global max_date
-	global min_date
-	t = time.time()
-
-	for row in tag_id_df.itertuples():
-		tag_id_map[row.tagId] = row.tag
-		id_tag_map[row.tag] = row.tagId
-
-	for row in user_ratings_df.itertuples():
-		user_rated_or_tagged_map[row.userid].add(row.movieid)
-         
+    global max_rank
+    global min_rank
+    global tag_count
+    global max_date
+    global min_date
+    t = time.time()
+    
+    for row in tag_id_df.itertuples():
+        tag_id_map[row.tagId] = row.tag
+        id_tag_map[row.tag] = row.tagId
+    for row in user_ratings_df.itertuples():
+        user_rated_or_tagged_map[row.userid].add(row.movieid)
+        user_rated_or_tagged_date_map[row.userid].add(tuple((row.movieid,dateutil.parser.parse(row.timestamp).timestamp())))
             
-	tagset = set()
-
-	for row in tag_movie_df.itertuples():
-		date_time = dateutil.parser.parse(row.timestamp).timestamp()
-		if date_time > max_date:
-			max_date = date_time
-		if date_time < min_date:
-			min_date = date_time
-		tagset.add(row.tagid)
-		user_rated_or_tagged_map[row.userid].add(row.movieid)
-		tag_movie_map[row.tagid].append((row.movieid, date_time))
-		user_tag_map[row.userid].add((row.tagid, date_time))
-		tag_user_map[row.tagid].add((row.userid, date_time))
-		movie_tag_map[row.movieid].add((row.tagid, date_time))
-
-	tag_count = tagset.__len__()
-	tagset.clear()
-	print('Main : ', time.time() - t)
+    tagset = set()
+    for row in tag_movie_df.itertuples():
+        date_time = dateutil.parser.parse(row.timestamp).timestamp()
+        if date_time > max_date:
+            max_date = date_time
+        if date_time < min_date:
+            min_date = date_time
+        tagset.add(row.tagid)
+        user_rated_or_tagged_map[row.userid].add(row.movieid)
+        tag_movie_map[row.tagid].append((row.movieid, date_time))
+        user_tag_map[row.userid].add((row.tagid, date_time))
+        tag_user_map[row.tagid].add((row.userid, date_time))
+        movie_tag_map[row.movieid].add((row.tagid, date_time))
+        user_rated_or_tagged_date_map[row.userid].add(tuple((row.movieid,dateutil.parser.parse(row.timestamp).timestamp())))
+    tag_count = tagset.__len__()
+    tagset.clear()
+    print('Main : ', time.time() - t)
 
 def getGenreMoviesMap():
     genre_movies_map = {}
