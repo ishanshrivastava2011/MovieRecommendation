@@ -346,13 +346,47 @@ def Recommender(userId):
     print("Movies similar to the users seed movies " + str(seedmovieNames) + " are:")
     return [(movieid_name_map[k],y) for (k,y) in rankedItems if k not in [k for k,y in movieRatedSeed]]
 
+userId = 67387
 
+global wt
+def calcWeightedSimilarity(col):
+    return sum(col*wt)/sum(wt)
 
+"""
+This Function takes a Movie Movie Similarity DataFrame and user id:
+Returns sorted list of movies similar to the movies watched by the 
+user based on the order in which the movies were watched.
+"""
+def getWeightedSimilarityOrder(movie_movie_similarity,userId):
+    global wt
+    moviesWatched = list(DataHandler.user_rated_or_tagged_map.get(userId))
+    moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
+    moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
+    moviesWatched_timestamp = sorted(moviesWatched_timestamp,key=itemgetter(1))
+    moviesWatched_timestamp_sorted = list(list(zip(*moviesWatched_timestamp ))[0])
+    movie_movie_similarity_subset = movie_movie_similarity.loc[moviesWatched_timestamp_sorted][list(set(moviesList)-set(moviesWatched))]
+    wt = list(range(1,len(movie_movie_similarity_subset)+1))
+    weightedSimilarities = movie_movie_similarity_subset.apply(calcWeightedSimilarity,0)
+    return weightedSimilarities.sort_values(ascending=False).index[0:5]
+    
 
-
-
-
-
+def task1c(userId):
+    global wt
+    DataHandler.createDictionaries1()
+    decomposed = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(),5)
+    moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
+    movie_movie_similarity = DataHandler.movie_movie_Similarity1(pd.DataFrame(decomposed[1],index=moviesList))
+    
+    moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
+    
+    moviesWatched_timestamp = sorted(moviesWatched_timestamp,key=itemgetter(1))
+    moviesWatched_timestamp_sorted = list(list(zip(*moviesWatched_timestamp ))[0])
+    resultMovies = getWeightedSimilarityOrder(movie_movie_similarity,userId)
+    movieid_name_map = DataHandler.movieid_name_map
+    resultMovieNames = [movieid_name_map[movieid] for movieid in resultMovies]
+    watchedMovieNames = [movieid_name_map[movieid] for movieid in moviesWatched_timestamp_sorted]
+    print('Movies Watched by the user in order: '+ str(watchedMovieNames))
+    print('Top 5 movies : '+ str(resultMovieNames))
 
 
 
