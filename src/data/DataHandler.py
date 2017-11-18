@@ -56,6 +56,7 @@ id_tag_map = dict()
 actor_actorid_map = defaultdict(str)
 movie_genre_map = defaultdict(set)
 movieid_name_map = defaultdict()
+tag_timestamp_map=defaultdict()
 
 user_rated_or_tagged_date_map = defaultdict(set)
 
@@ -92,6 +93,7 @@ def vectors():
         tag_user_map[row.tagid].add((row.userid, date_time))
         movie_tag_map[row.movieid].add((row.tagid, date_time))
         user_rated_or_tagged_date_map[row.userid].add(tuple((row.movieid,dateutil.parser.parse(row.timestamp).timestamp())))
+        tag_timestamp_map[row.tagid]=dateutil.parser.parse(row.timestamp).timestamp()
     tag_count = tagset.__len__()
     tagset.clear()
     print('Main : ', time.time() - t)
@@ -450,7 +452,7 @@ def load_movie_tag_df():
     movieCount = movie_tag_map.keys().__len__()
     createDictionaries1()
 
-    tagList = sorted(list(tag_movie_map.keys()))
+    tagList = list(tag_movie_map.keys())
     movieList = []
     df = pd.DataFrame(columns=tagList)
     for movie in movie_tag_map.keys():

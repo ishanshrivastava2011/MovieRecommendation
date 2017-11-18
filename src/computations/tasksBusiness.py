@@ -11,6 +11,9 @@ import numpy as np
 from computations import metrics
 from computations import personalizedpagerank as ppr
 DataHandler.vectors()
+global wt
+
+
 
 def genre_spaceTags_LDA(genre):
     DataHandler.vectors()
@@ -346,9 +349,7 @@ def Recommender(userId):
     print("Movies similar to the users seed movies " + str(seedmovieNames) + " are:")
     return [(movieid_name_map[k],y) for (k,y) in rankedItems if k not in [k for k,y in movieRatedSeed]]
 
-userId = 67387
 
-global wt
 def calcWeightedSimilarity(col):
     return sum(col*wt)/sum(wt)
 
@@ -357,18 +358,42 @@ This Function takes a Movie Movie Similarity DataFrame and user id:
 Returns sorted list of movies similar to the movies watched by the 
 user based on the order in which the movies were watched.
 """
-def getWeightedSimilarityOrder(movie_movie_similarity,userId):
+def getWeightedSimilarityOrder(similarity_df,userId):
     global wt
     moviesWatched = list(DataHandler.user_rated_or_tagged_map.get(userId))
     moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
     moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
     moviesWatched_timestamp = sorted(moviesWatched_timestamp,key=itemgetter(1))
     moviesWatched_timestamp_sorted = list(list(zip(*moviesWatched_timestamp ))[0])
-    movie_movie_similarity_subset = movie_movie_similarity.loc[moviesWatched_timestamp_sorted][list(set(moviesList)-set(moviesWatched))]
+    movie_movie_similarity_subset = similarity_df.loc[moviesWatched_timestamp_sorted][list(set(moviesList)-set(moviesWatched))]
     wt = list(range(1,len(movie_movie_similarity_subset)+1))
-    weightedSimilarities = movie_movie_similarity_subset.apply(calcWeightedSimilarity,0)
-    return weightedSimilarities.sort_values(ascending=False).index[0:5]
+    weightedSimilarities = movie_movie_similarity_subset.apply(calcWeightedSimilarity,axis=0)
+    return weightedSimilarities.sort_values(ascending=False).index[0:5], weightedSimilarities.sort_values(ascending=False)[0:5]
+
+def task1a_PCA(userId):
+    DataHandler.vectors()
+    DataHandler.createDictionaries1()
+    movie_tag_df=DataHandler.load_movie_tag_df()
+    u = decompositions.PCADimensionReduction((movie_tag_df),5) #Assuming number of latent semantics are 5
+    decpmposed=pd.DataFrame(u,index =movie_tag_df.index )
+    similarity_df=DataHandler.movie_movie_Similarity1(decpmposed)
+    movie_list=getWeightedSimilarityOrder(similarity_df,userId)
     
+    user_movie_timestamp_map=DataHandler.user_rated_or_tagged_date_map
+    list(DataHandler.user_rated_or_tagged_date_map[userId]).sort(key=lambda tup: tup[1])
+    user_watched_movies={}
+    #Code to get the movies the user has already watched
+    for user, movies in user_movie_timestamp_map.items():
+        for i in user_movie_timestamp_map[user]:
+            if user not in user_watched_movies:
+                user_watched_movies[user]=[i[0]]
+            else:
+                user_watched_movies[user].append(i[0])
+                
+    movieid_name_map = DataHandler.movieid_name_map
+    print('Movies similar to the following seed movies: '+str([movieid_name_map.get(i) for i in user_watched_movies[userId]]))
+    for i in range(0,len(movie_list[0])):
+        print(movieid_name_map[movie_list[0][i]]+': '+ str(list(movie_list[1])[i]))    
 
 def task1c(userId):
     global wt
