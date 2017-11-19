@@ -36,6 +36,14 @@ def loadCPSemantics():
     decomposed = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(), 5)
     return np.array(decomposed[1])
 
+def loadPCASemantics():
+    movie_tag_df = DataHandler.load_movie_tag_df()
+    return decompositions.PCADimensionReduction((movie_tag_df.transpose()), 5)
+
+def loadSVDSemantics():
+    movie_tag_df = DataHandler.load_movie_tag_df()
+    return decompositions.SVDDecomposition((movie_tag_df.transpose()), 5)[0]
+
 def loadBase(userId, func):
     global movie_movie_similarity
     global moviesWatched_timestamp_sorted
