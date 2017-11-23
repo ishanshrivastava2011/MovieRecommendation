@@ -64,6 +64,19 @@ def create_actor_actorid_map():
     for row in actor_info_df.itertuples():
         actor_actorid_map[row.id]=row.name
 
+
+def dateParse(date):
+    year = int(date[0:4]) - 1970
+    month = int(date[5:7])
+    day = int(date[8:10])
+
+    hour = int(date[11:13])
+    min = int(date[14:16])
+    sec = int(date[17:19])
+
+    return year*365*24*3600 + month*30*24*3600 + day*24*3600 + hour*3600 + min*60 + sec
+
+
 def vectors():
     global max_rank
     global min_rank
@@ -77,11 +90,11 @@ def vectors():
         id_tag_map[row.tag] = row.tagId
     for row in user_ratings_df.itertuples():
         user_rated_or_tagged_map[row.userid].add(row.movieid)
-        user_rated_or_tagged_date_map[row.userid].add(tuple((row.movieid,dateutil.parser.parse(row.timestamp).timestamp())))
+        user_rated_or_tagged_date_map[row.userid].add((row.movieid,dateParse(row.timestamp)))
             
     tagset = set()
     for row in tag_movie_df.itertuples():
-        date_time = dateutil.parser.parse(row.timestamp).timestamp()
+        date_time = dateParse(row.timestamp)
         if date_time > max_date:
             max_date = date_time
         if date_time < min_date:
@@ -92,8 +105,8 @@ def vectors():
         user_tag_map[row.userid].add((row.tagid, date_time))
         tag_user_map[row.tagid].add((row.userid, date_time))
         movie_tag_map[row.movieid].add((row.tagid, date_time))
-        user_rated_or_tagged_date_map[row.userid].add(tuple((row.movieid,dateutil.parser.parse(row.timestamp).timestamp())))
-        tag_timestamp_map[row.tagid]=dateutil.parser.parse(row.timestamp).timestamp()
+        user_rated_or_tagged_date_map[row.userid].add((row.movieid,date_time))
+        # tag_timestamp_map[row.tagid]=dateutil.parser.parse(row.timestamp).timestamp()
     tag_count = tagset.__len__()
     tagset.clear()
     print('Main : ', time.time() - t)
@@ -448,13 +461,14 @@ def similarActors_LDA(givenActor):
     return top10
 
 
-def load_movie_tag_df():
+def buildDF():
     movieCount = movie_tag_map.keys().__len__()
     createDictionaries1()
 
     tagList = list(tag_movie_map.keys())
+    dfList = []
     movieList = []
-    df = pd.DataFrame(columns=tagList)
+
     for movie in movie_tag_map.keys():
         tagsInMovie = movie_tag_map[movie]
         tf_idf_map = dict()
@@ -469,9 +483,13 @@ def load_movie_tag_df():
                 tf = tf_numerator / len(tagsInMovie)
                 tf_idf = tf * math.log2(movieCount / moviesInTagCount)
                 tf_idf_map[tag] = tf_idf
-            df = df.append(tf_idf_map, ignore_index=True)
-    df.index = movieList
-    return df    
+            dfList.append(tf_idf_map)
+    return dfList,tagList,movieList
+
+
+def load_movie_tag_df():
+    dfList, tagList, movieList = buildDF()
+    return pd.DataFrame(dfList, columns=tagList, index=movieList)
 
 def movie_movie_Similarity(movie_tag_df):
     movies = movie_tag_df.index

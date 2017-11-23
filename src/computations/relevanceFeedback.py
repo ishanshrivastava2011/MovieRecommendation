@@ -1,7 +1,7 @@
 from data import DataHandler
 from computations import decompositions
 import time
-import pandas as pd
+from util import constants
 from operator import itemgetter
 import numpy as np
 from numba import guvectorize, float32, prange,jit
@@ -43,6 +43,11 @@ def loadPCASemantics():
 def loadSVDSemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
     return decompositions.SVDDecomposition((movie_tag_df.transpose()), 5)[0]
+
+def loadLDASemantics():
+    movie_tag_df = DataHandler.load_movie_tag_df()
+    return np.array(decompositions.LDADecomposition(movie_tag_df.transpose(), 5, constants.genreTagsSpacePasses)[1].dense)
+
 
 def loadBase(userId, func):
     global movie_movie_similarity
@@ -118,7 +123,7 @@ def runme():
     enter_userid = 36  # input("UserID : ")
     userId = int(enter_userid)
     times = time.time()
-    loadBase(userId,loadCPSemantics)
+    loadBase(userId,loadPCASemantics)
     new_query = q_vector
     while True:
 
