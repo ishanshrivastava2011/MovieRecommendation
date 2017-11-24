@@ -12,7 +12,7 @@ from computations import metrics
 from computations import personalizedpagerank as ppr
 DataHandler.vectors()
 global wt
-
+import sklearn.metrics.pairwise as pairwise
 
 
 def genre_spaceTags_LDA(genre):
@@ -412,6 +412,117 @@ def task1c(userId):
     watchedMovieNames = [movieid_name_map[movieid] for movieid in moviesWatched_timestamp_sorted]
     print('Movies Watched by the user in order: '+ str(watchedMovieNames))
     print('Top 5 movies : '+ str(resultMovieNames))
+
+def task1d(userId) :
+    DataHandler.createDictionaries1()
+    movieRatedSeed = DataHandler.userMovieOrders(userId)
+    
+    decomposed = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(),5)
+    moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
+    movie_movie_similarity = DataHandler.movie_movie_Similarity1(pd.DataFrame(decomposed[1],index=moviesList))
+    
+    prData = ppr.personalizedPageRankWeighted(movie_movie_similarity, movieRatedSeed, 0.9)
+    rankedItems = sorted(list(map(lambda x:(moviesList[x[0]],x[1]),prData.itertuples())),key=lambda x:x[1], reverse=True)
+    movieid_name_map = DataHandler.movieid_name_map
+
+    seedmovieNames = [movieid_name_map[k] for k,y in movieRatedSeed]
+    print("Movies similar to the users seed movies " + str(seedmovieNames) + " are:")
+    required =  sorted([(movieid_name_map[k],y) for (k,y) in rankedItems if k not in [k for k,y in movieRatedSeed]],key=lambda x: x[1], reverse=True)
+    return required[:5]
+    
+
+def task3_MDS(iterations) :
+    P = DataHandler.load_movie_tag_df()
+   
+    
+    U, Sigma, VT = decompositions.SVDDecomposition(P, 500);
+    
+    dissimilarities = pairwise.euclidean_distances(P)
+    
+    
+    
+    #A = pd.DataFrame(U, index = P.index)
+    
+    #A.to_csv('foo.csv')
+    
+    #dissimilarities = np.matrix(U) * np.matrix(U.T)
+    #movieList = dissimilarities.index
+    #dissimilarities=np.matrix(dissimilarities)
+    
+    
+    dis = pairwise.euclidean_distances(U)
+        
+        # Compute stress
+    stress = np.square((dis.ravel() - dissimilarities.ravel())).sum() / 2
+        
+        
+    print('it: %d, stress %s' % (1, stress))
+    
+    
+        
+
+def Original_task_MDS(iterations) :
+    n_components=500
+    movie_tag_df = DataHandler.load_movie_tag_df() 
+    dissimilarities = pairwise.euclidean_distances(movie_tag_df)
+    #movieList = dissimilarities.index
+    #dissimilarities=np.matrix(dissimilarities)
+    n_samples = dissimilarities.shape[0]
+    X = np.random.randn(n_samples * n_components)
+    X = X.reshape((n_samples, n_components))
+    
+    for it in range(iterations) :
+        dis = pairwise.euclidean_distances(X)
+        disparities = dissimilarities
+        
+        # Compute stress
+        stress = np.square((dis.ravel() - disparities.ravel())).sum() / 2
+        
+       # Update X using the Guttman transform
+        dis[dis == 0] = 1e-5
+        ratio = disparities / dis
+        B = - ratio
+        B[np.diag_indices_from(ratio)] += ratio.sum(axis=1).T
+        X = 1. / n_samples * np.dot(B, X)
+        
+        print('it: %d, stress %s' % (it, stress))
+    
+    A = pd.DataFrame(X, index = movie_tag_df.index)
+    
+    A.to_csv('foo.csv')
+    
+def task3_MDS_SVD(iterations) :
+    P = DataHandler.load_movie_tag_df()
+   
+    
+    X, Sigma, VT = decompositions.SVDDecomposition(P, 500);
+    
+    dissimilarities = pairwise.euclidean_distances(P)
+   # movieList = dissimilarities.index
+    #dissimilarities=np.matrix(dissimilarities)
+    
+    n_samples = dissimilarities.shape[0]
+    
+    
+    for it in range(iterations) :
+        dis = pairwise.euclidean_distances(X)
+        disparities = dissimilarities
+        
+        # Compute stress
+        stress = np.square((dis.ravel() - disparities.ravel())).sum() / 2
+        
+       # Update X using the Guttman transform
+        dis[dis == 0] = 1e-5
+        ratio = disparities / dis
+        B = - ratio
+        B[np.diag_indices_from(ratio)] += ratio.sum(axis=1).T
+        X = 1. / n_samples * np.dot(B, X)
+        
+        print('it: %d, stress %s' % (it, stress))
+    
+    A = pd.DataFrame(X, index = P.index)
+    
+    A.to_csv('foo.csv')
 
 
 

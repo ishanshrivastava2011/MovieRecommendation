@@ -499,7 +499,7 @@ def movie_movie_Similarity(movie_tag_df):
         for movie2 in movies:
             vec1 = dict(zip(movie_tag_df.loc[movie1].index,movie_tag_df.loc[movie1]))
             vec2 = dict(zip(movie_tag_df.loc[movie2].index,movie_tag_df.loc[movie2]))
-            movieMap[movie2] = metrics.euclidean(vec1, vec2)
+            movieMap[movie2] = metrics.euclideanDistance(vec1, vec2)
         dfList.append(movieMap)
     return pd.DataFrame(dfList, columns=movies, index=movies)
 
@@ -685,3 +685,30 @@ def userMovieRatings(user_id):
 				sum += mean
 
 	return [(k,v/sum) for k,v in movieRatings.items()]
+
+def userMovieOrders(user_id):
+    moviesWatched_timestamp = list(user_rated_or_tagged_date_map.get(user_id))
+    moviesWatched_timestamp = sorted(moviesWatched_timestamp,key=itemgetter(1))
+    movieOrders = dict()
+    count = 0
+    sum = 0
+    for movieid,movie_timestamp in moviesWatched_timestamp :
+        movieOrders[movieid] = movie_timestamp
+        count += 1
+        sum += movie_timestamp
+        
+    for row in user_ratings_df.itertuples():
+    	 if(row.userid == user_id):
+             rating = row.rating
+             count += 1
+             sum += rating
+             movieOrders[row.movieid] += rating
+
+    mean = float(sum)/float(count)
+    for row in tag_movie_df.itertuples():
+        if (row.userid == user_id):
+            if(row.movieid not in movieOrders):
+                movieOrders[row.movieid] = mean
+                sum += mean
+
+    return [(k,v/sum) for k,v in movieOrders.items()]
