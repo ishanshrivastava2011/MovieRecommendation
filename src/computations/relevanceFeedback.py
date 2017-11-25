@@ -32,6 +32,12 @@ def euclideanMatrixVector(matx, vec, distances):
     for i in prange(matx.shape[0]):
         distances[i] = np.linalg.norm(matx[i] - vec)
 
+@guvectorize([(float32[:, :], float32[:, :])], '(m,n)->(m,m)')
+def euclideanSimilarityMatrix(matx, distances):
+    for i in prange(matx.shape[0]):
+        for j in range(matx.shape[0]):
+            distances[i][j] = np.linalg.norm(matx[i] - matx[j])
+
 def loadCPSemantics():
     decomposed = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(), 5)
     return np.array(decomposed[1])
