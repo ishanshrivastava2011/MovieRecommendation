@@ -417,10 +417,10 @@ def task1d(userId) :
     DataHandler.createDictionaries1()
     movieRatedSeed = DataHandler.userMovieOrders(userId)
     
-    decomposed = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(),5)
+    P = DataHandler.load_movie_tag_df()
     moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
-    movie_movie_similarity = DataHandler.movie_movie_Similarity1(pd.DataFrame(decomposed[1],index=moviesList))
-    
+    movie_movie_similarity = pairwise.euclidean_distances(P)
+    movie_movie_similarity = pd.DataFrame(movie_movie_similarity)
     prData = ppr.personalizedPageRankWeighted(movie_movie_similarity, movieRatedSeed, 0.9)
     rankedItems = sorted(list(map(lambda x:(moviesList[x[0]],x[1]),prData.itertuples())),key=lambda x:x[1], reverse=True)
     movieid_name_map = DataHandler.movieid_name_map
@@ -454,10 +454,13 @@ def task3_MDS_SVD(iterations) :
         dis[dis == 0] = 1e-5
         ratio = disparities / dis
         B = - ratio
+        
         B[np.diag_indices_from(ratio)] += ratio.sum(axis=1).T
         X = 1. / n_samples * np.dot(B, X)
         
         print('it: %d, stress %s' % (it, stress))
+        
+    
     
 
 
