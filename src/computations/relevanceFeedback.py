@@ -4,7 +4,7 @@ import time
 from util import constants
 from operator import itemgetter
 import numpy as np
-from numba import guvectorize, float32, prange,jit
+from numba import guvectorize, float32,jit
 
 movie_movie_similarity = None
 moviesWatched_timestamp_sorted = None
@@ -29,12 +29,12 @@ def listIndex(full_list, sub_list):
 
 @guvectorize([(float32[:, :], float32[:], float32[:])], '(m,n),(n)->(m)')
 def euclideanMatrixVector(matx, vec, distances):
-    for i in prange(matx.shape[0]):
+    for i in range(matx.shape[0]):
         distances[i] = np.linalg.norm(matx[i] - vec)
 
 @guvectorize([(float32[:, :], float32[:, :])], '(m,n)->(m,m)')
 def euclideanSimilarityMatrix(matx, distances):
-    for i in prange(matx.shape[0]):
+    for i in range(matx.shape[0]):
         for j in range(matx.shape[0]):
             distances[i][j] = np.linalg.norm(matx[i] - matx[j])
 

@@ -10,6 +10,8 @@ from util import formatter
 import numpy as np
 from computations import metrics
 from computations import personalizedpagerank as ppr
+from computations import LSH as lsh
+from computations import rNearestNeighborSimilarMovies
 DataHandler.vectors()
 global wt
 import sklearn.metrics.pairwise as pairwise
@@ -460,11 +462,12 @@ def task3_MDS_SVD(iterations) :
         
         print('it: %d, stress %s' % (it, stress))
 
-def tast3():
+def task3():
     #3.1
     DataHandler.createDictionaries1()
     movieid_name_map = DataHandler.movieid_name_map
     MoviesinLatentSpace = pd.read_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv',index_col = 0)
+    MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
     print("Mapped all the movies to 500 dimensional space\n")
     d = len(MoviesinLatentSpace.columns)
     w = constants.W
@@ -505,7 +508,8 @@ def tast3():
         if doSearch:
             movieid = int(input("Please enter a movieID: "))
             r = int(input("Please enter the number of nearest neighbors 'r': "))
-            nearestMovies,nearestMoviesBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+            moviePoint = MoviesinLatentSpace_Matrix[list(MoviesinLatentSpace.index).index(movieid)].astype(np.float32)
+            nearestMovies,nearestMoviesBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result)
             nearestMoviesNames = [movieid_name_map[mid] for mid in nearestMovies]
             nearestMoviesBruteForceNames = [movieid_name_map[mid] for mid in nearestMoviesBruteForce]
             print("Movies Similar to "+str(movieid_name_map[movieid])+"\n")

@@ -27,7 +27,7 @@ def getMoviesInLDifferentHashBuckets(L,point,w,layerTables,LHashTables):
 
 #movieid = moviesList[4]
 #r = 10
-def getRNearestNeighbors(movieid,r,MoviesinLatentSpace,layerTables,LHashTables_result):
+def getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result):
     t1 = time.time()    
     L = len(layerTables)
     w = constants.W
@@ -37,9 +37,9 @@ def getRNearestNeighbors(movieid,r,MoviesinLatentSpace,layerTables,LHashTables_r
     
     moviesList =list( MoviesinLatentSpace.index)
     givenMovieidIndex = moviesList.index(movieid)
-    point = MoviesinLatentSpace_Matrix[givenMovieidIndex].astype(np.float32)
+#    point = MoviesinLatentSpace_Matrix[givenMovieidIndex].astype(np.float32)
 
-    nearbyMovieIndices = list(itertools.chain.from_iterable(getMoviesInLDifferentHashBuckets(L,point,w,layerTables,LHashTables_result)))
+    nearbyMovieIndices = list(itertools.chain.from_iterable(getMoviesInLDifferentHashBuckets(L,moviePoint,w,layerTables,LHashTables_result)))
     uniqueNearbyMovieIndices = list(set(nearbyMovieIndices))
     
     print('Number of Unique movies considered: '+str(len(uniqueNearbyMovieIndices)))
@@ -49,7 +49,7 @@ def getRNearestNeighbors(movieid,r,MoviesinLatentSpace,layerTables,LHashTables_r
         uniqueNearbyMovieIndices = list(set(nearbyMovieIndices)-set([givenMovieidIndex]))
         nearbyMovieList = [moviesList[i ] for i in uniqueNearbyMovieIndices]
         MoviesinLatentSpace_SVD_Matrix_subset = MoviesinLatentSpace_Matrix[uniqueNearbyMovieIndices]
-        distances = relevanceFeedback.euclideanMatrixVector(MoviesinLatentSpace_SVD_Matrix_subset,point)
+        distances = relevanceFeedback.euclideanMatrixVector(MoviesinLatentSpace_SVD_Matrix_subset,moviePoint)
         
         nearestMovieIndices = np.argsort(distances[0])[:r]
         nearestMovies = [nearbyMovieList[i] for i in np.array(nearestMovieIndices)[0]][:r]
@@ -59,7 +59,7 @@ def getRNearestNeighbors(movieid,r,MoviesinLatentSpace,layerTables,LHashTables_r
     moviesListTest = moviesList
     moviesListTest.remove(movieid)
     allButGivenMovieList = list(set(range(MoviesinLatentSpace_Matrix.shape[0]))-set([givenMovieidIndex]))
-    distancesTest = relevanceFeedback.euclideanMatrixVector(MoviesinLatentSpace_Matrix[allButGivenMovieList],point)
+    distancesTest = relevanceFeedback.euclideanMatrixVector(MoviesinLatentSpace_Matrix[allButGivenMovieList],moviePoint)
     nearestMovieIndicesTest = np.argsort(distancesTest[0])
     nearestMoviesTest = [moviesListTest[i] for i in np.array(nearestMovieIndicesTest)[0]][:r]
     

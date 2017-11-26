@@ -9,3 +9,4 @@ genreActorSpacePasses = 1000
 RANK = 5
 EPSILON = 0.0000001
 ALPHA = 0.85
+W = 1
