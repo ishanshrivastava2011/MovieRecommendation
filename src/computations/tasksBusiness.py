@@ -459,7 +459,63 @@ def task3_MDS_SVD(iterations) :
         X = 1. / n_samples * np.dot(B, X)
         
         print('it: %d, stress %s' % (it, stress))
+
+def tast3():
+    #3.1
+    DataHandler.createDictionaries1()
+    movieid_name_map = DataHandler.movieid_name_map
+    MoviesinLatentSpace = pd.read_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv',index_col = 0)
+    print("Mapped all the movies to 500 dimensional space\n")
+    d = len(MoviesinLatentSpace.columns)
+    w = constants.W
+    MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
+    
+    L = int(input("Please enter the number of Layers 'L': "))
+    k = int(input("Please enter the number of hashes per layer 'k': "))
+    #layerTables stores L*K random 'd' dimensional vectors and random offset values 'b'
+    #LHashTables_result constains hashtables for each layer with keys provided by it's K hash functions and values as the movie indices
+    layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
+    print("Index Structure Created\n")
+    
+    reIndex = False
+    doSearch = False
+    exitVar = False
+    
+    while not exitVar :
         
+        print("To Re-Index the index structure Press 'R'")
+        print("To perform rNearestNeigbhor Search Press 'S'")
+        print("To Exit Press 'X'")
+        userInput = input("Your Response: ")
+        if userInput == 'X':
+            print("Exiting..")
+            break
+        elif userInput == "R":
+            print("Re-Indexing..")
+            reIndex = True
+        elif userInput == "S":
+            doSearch = True
+        
+        if reIndex:
+            L = int(input("Please enter the number of Layers 'L': "))
+            k = int(input("Please enter the number of hashes per layer 'k': "))
+            layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
+            print("Index Structure Created Again\n")
+            reIndex = False
+        if doSearch:
+            movieid = int(input("Please enter a movieID: "))
+            r = int(input("Please enter the number of nearest neighbors 'r': "))
+            nearestMovies,nearestMoviesBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+            nearestMoviesNames = [movieid_name_map[mid] for mid in nearestMovies]
+            nearestMoviesBruteForceNames = [movieid_name_map[mid] for mid in nearestMoviesBruteForce]
+            print("Movies Similar to "+str(movieid_name_map[movieid])+"\n")
+            print("Results based on the LSH based rNearestNeighbors: \n"+str(nearestMoviesNames)+"\n")
+            print("Results based on Brute Force rNearestNeighbors: \n"+str(nearestMoviesBruteForceNames)+"\n")
+            feedback = input("Would you like to give feedback 'Y'/'N': ")
+            if feedback == 'Y':
+                print("Relevance Feedback not yet implemented\n")
+            else:
+                continue
     
     
 
