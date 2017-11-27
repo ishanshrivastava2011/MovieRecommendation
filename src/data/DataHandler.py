@@ -49,6 +49,7 @@ genre_movie_map = defaultdict(set)
 user_tag_map = defaultdict(set)
 tag_user_map = defaultdict(set)
 genre_tagset = defaultdict(set)
+user_movie_ratings_map = defaultdict(list)
 tag_movie_map = defaultdict(list)
 user_rated_or_tagged_map = defaultdict(set)
 tag_id_map = dict()
@@ -127,6 +128,7 @@ def createDictionaries1():
     global min_rank
     global tag_count
     global max_date
+    global user_movie_ratings_map
     global min_date
     for row in movie_actor_df.itertuples():
         if row.actor_movie_rank < min_rank:
@@ -148,6 +150,7 @@ def createDictionaries1():
         year_movie_map[row.year]=row.movieid
         movieid_name_map[row.movieid]=row.moviename
     for row in user_ratings_df.itertuples():
+        user_movie_ratings_map[row.userid].append((row.movieid, row.rating/5.0))
         movie_ratings_map[row.movieid].append(row.rating)
         uniqueRatings.add(row.rating)
 # def load_genre_count_matrix(given_genre):

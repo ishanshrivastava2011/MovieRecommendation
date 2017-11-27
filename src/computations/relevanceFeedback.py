@@ -1,6 +1,7 @@
 from data import DataHandler
 from computations import decompositions
 import time
+import itertools
 from util import constants
 from operator import itemgetter
 import numpy as np
@@ -12,6 +13,7 @@ moviesWatched = None
 q_vector = None
 aug_sim_matx = None
 moviesList = None
+finalWeights = None
 nonwatchedList = None
 
 def listIndex(full_list, sub_list):
@@ -57,9 +59,9 @@ def loadLDASemantics():
 
 def loadBase(userId, func):
     global movie_movie_similarity
-    global moviesWatched_timestamp_sorted
     global moviesWatched
-    global q_vector
+    global q_vector 
+    global finalWeights
     global aug_sim_matx
     global moviesList
     global nonwatchedList
@@ -71,77 +73,95 @@ def loadBase(userId, func):
     similarity_semantic_matrix = ((similarity_semantic_matrix - similarity_semantic_matrix.min(axis=0) + 0.00001) \
      / (similarity_semantic_matrix.max(axis=0) - similarity_semantic_matrix.min(axis=0) + 0.00001))
 
-
-    moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
+    timestamps = np.array([item[1] for item in list(itertools.chain(*DataHandler.user_rated_or_tagged_date_map.values()))])
+    time_max = timestamps.max()
+    time_min = timestamps.min()
+    moviesList = sorted(list(DataHandler.movie_tag_map.keys()))
+    moviesRated = dict(DataHandler.user_movie_ratings_map.get(userId))
     moviesWatched = list(DataHandler.user_rated_or_tagged_map.get(userId))
     moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
-    moviesWatched_timestamp = sorted(moviesWatched_timestamp, key=itemgetter(1))
-    moviesWatched_timestamp_sorted = list(list(zip(*moviesWatched_timestamp))[0])
-    windx = (np.argsort(moviesWatched_timestamp_sorted)+1)
-    windx = windx*(1/np.sum(windx))
+    moviesWatched_array = np.array([movie[1] for movie in moviesWatched_timestamp])
+    time_max = timestamps.max()
+    time_min = timestamps.min()
+    timestamp_weights = (moviesWatched_array - time_min + 0.00001) \
+    /  (time_max - time_min + 0.00001)
+    ratingWeights = np.array([moviesRated[movie[0]] for movie in moviesWatched_timestamp])
+    finalWeights = timestamp_weights*0.1 + ratingWeights*0.9
+
 
     indx,nonwatchedList = listIndex(moviesList, moviesWatched)
     vector = np.take(similarity_semantic_matrix, indx, axis=0)
-    q_vector = vector.T.dot(windx).astype(np.float32)
-    aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
+    # q_vector = vector.T.dot(finalWeights).astype(np.float32)
+    q_vector = vector.astype(np.float32)
 
+    aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
 
 
 def execute_query(q_vector):
     global aug_sim_matx
-    global moviesWatched_timestamp_sorted
     times = time.time()
-    distances = euclideanMatrixVector(aug_sim_matx, q_vector)
-    # print(' query ---- ' + str(time.time() - times) + ' ---- query')
-    return np.argsort(distances)
+    distance = []
+    for vector in q_vector:
+        distance.append(euclideanMatrixVector(aug_sim_matx, vector))
+
+    distance = 1./np.array(distance)
+    distance = distance.T.dot(finalWeights).astype(np.float32)
+
+    print(' query ---- ' + str(time.time() - times) + ' ---- query')
+    return np.argsort(distance)[::-1]
 
 
 def recommendMovies(q_vector):
     global nonwatchedList
-    global moviesWatched_timestamp_sorted
     distances = execute_query(q_vector)
 
     movieid_name_map = DataHandler.movieid_name_map
-    watchedMovieNames = [movieid_name_map[movieid] for movieid in moviesWatched_timestamp_sorted]
+    watchedMovieNames = [movieid_name_map[movieid] for movieid in moviesWatched]
     print(watchedMovieNames)
     return [nonwatchedList[i] for i in distances][0:5]
 
 
-def newQueryFromFeedBack(recommended_movies, feedback):
+def newQueryFromFeedBack(new_query, recommended_movies, feedback):
     global nonwatchedList
     global aug_sim_matx
+
+    j = np.linalg.norm(aug_sim_matx,axis=0)
 
     recommended_idx = [aug_sim_matx[nonwatchedList.index(i)] for i in recommended_movies]
 
     relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 1], axis=0)
-    n_corpus = aug_sim_matx.sum(axis=0)
-    n_N = n_corpus/len(n_corpus)
-    p_vector = (relevant + n_N)*(1.0/(len(relevant) + 1.0))
-    u_vector = (n_corpus - relevant + n_N)*(1.0 /(len(n_corpus)+1.0))
+    non_relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 0], axis=0)
+    # n_corpus = aug_sim_matx.sum(axis=0)
+    n_N = non_relevant/5
+    p_vector = (relevant)*(1.0/(len(relevant) + 1.0))
+    u_vector = (non_relevant)*(1.0 /(len(non_relevant)+1.0))
 
-    n_query = np.log((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
-    return n_query
+    new_q = ((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
+    vals = np.power(new_q, aug_sim_matx)
+
+
+    return np.argsort(np.prod(vals, axis=1))[::-1]
 
 
 def runme():
-    global q_vector
+    global q_vecto
     movieid_name_map = DataHandler.movieid_name_map
     enter_userid = 36  # input("UserID : ")
     userId = int(enter_userid)
     times = time.time()
     loadBase(userId,loadPCASemantics)
     new_query = q_vector
+    movies = recommendMovies(new_query)
+    named_movies = [movieid_name_map[i] for i in movies]
+    print('Top 5 movies : ' + str(named_movies))
     while True:
-
-        movies = recommendMovies(new_query)
-        named_movies = [movieid_name_map[i] for i in movies]
-        print('Top 5 movies : ' + str(named_movies))
         feedback = input("Relevance (1/0) for each of the 5 movies: ")
         if feedback == 'exit':
             print("GoodBye........")
             break
         feedback = [int(i) for i in feedback.split(',')]
-        new_query = newQueryFromFeedBack(movies,feedback)
+        new_query = newQueryFromFeedBack(new_query, movies,feedback)
+        print([movieid_name_map[nonwatchedList[i]] for i in new_query][0:5])
         # print(str(new_query) + "\n")
 
 def newQueryFromRochioFeedBack(moviepoint, relevantMovieList, irrelevantMovieList, MoviesinLatentSpace):
