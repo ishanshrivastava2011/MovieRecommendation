@@ -144,3 +144,38 @@ def runme():
         new_query = newQueryFromFeedBack(movies,feedback)
         # print(str(new_query) + "\n")
 
+def newQueryFromRochioFeedBack(moviepoint, relevantMovieList, irrelevantMovieList, MoviesinLatentSpace):
+    relevantSum, irrevelantSum = returnSumOfRel_SumNonRel(relevantMovieList, irrelevantMovieList, MoviesinLatentSpace)
+    if  len(relevantMovieList) == 0 :
+         factor = constants.GAMMA*(irrevelantSum/len(irrelevantMovieList))
+    elif len(irrelevantMovieList) == 0 :
+         factor = constants.BETA*(relevantSum/len(relevantMovieList))
+    else :
+         factor = constants.BETA*(relevantSum/len(relevantMovieList)) - constants.GAMMA*(irrevelantSum/len(irrelevantMovieList))
+    return (moviepoint + factor).astype(np.float32)
+
+def returnSumOfRel_SumNonRel(Rel,NonRel,MoviesinLatentSpace):
+    MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
+    moviesList =list( MoviesinLatentSpace.index)
+    if len(Rel) == 0 :
+        sumRelPoint = [0]*len(MoviesinLatentSpace.columns)
+    else:
+        Rel_movieIndices = [moviesList.index(mid) for mid in Rel]
+        sumRelPoint = MoviesinLatentSpace_Matrix[Rel_movieIndices].sum(axis = 0)
+    if len(NonRel) == 0:
+        sumNonRelPoint = [0]*len(MoviesinLatentSpace.columns)
+    else :
+        NonRel_movieIndices = [moviesList.index(mid) for mid in NonRel]
+        sumNonRelPoint = MoviesinLatentSpace_Matrix[NonRel_movieIndices].sum(axis = 0)
+    return sumRelPoint,sumNonRelPoint
+    
+def newQueryFromLDEDecHiFeedBack(moviePoint, relevantMovieList, irrevelantMovieList, nearestMovies, MoviesinLatentSpace):
+    if len(irrevelantMovieList) != 0:
+        sumRelPoint,sumNonRelPoint = returnSumOfRel_SumNonRel(relevantMovieList,[irrevelantMovieList[-1]],MoviesinLatentSpace)
+    else:
+        sumRelPoint,sumNonRelPoint = returnSumOfRel_SumNonRel(relevantMovieList,irrevelantMovieList,MoviesinLatentSpace)
+    return (moviePoint + sumRelPoint - sumNonRelPoint).astype(np.float32)
+
+def newQueryFromLDERegularFeedBack(moviePoint, relevantMovieList, irrevelantMovieList, nearestMovies, MoviesinLatentSpace):
+    sumRelPoint,sumNonRelPoint = returnSumOfRel_SumNonRel(relevantMovieList,irrevelantMovieList,MoviesinLatentSpace)
+    return (moviePoint + sumRelPoint - sumNonRelPoint).astype(np.float32)

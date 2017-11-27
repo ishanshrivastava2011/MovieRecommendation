@@ -12,6 +12,7 @@ from computations import metrics
 from computations import personalizedpagerank as ppr
 from computations import LSH as lsh
 from computations import rNearestNeighborSimilarMovies
+from computations import relevanceFeedback
 DataHandler.vectors()
 global wt
 import sklearn.metrics.pairwise as pairwise
@@ -473,55 +474,192 @@ def task3():
     w = constants.W
     MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
     
-    L = int(input("Please enter the number of Layers 'L': "))
-    k = int(input("Please enter the number of hashes per layer 'k': "))
-    #layerTables stores L*K random 'd' dimensional vectors and random offset values 'b'
-    #LHashTables_result constains hashtables for each layer with keys provided by it's K hash functions and values as the movie indices
-    layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
-    print("Index Structure Created\n")
+    indexing = True
+    while indexing:
+        L = input("Please enter the number of Layers 'L': ")
+        if not L.isdigit():
+            print("A Non Integer was given as input. L should be an integer.\n")
+            indexing = True
+            continue
+        else:
+            L = int(L)
+        k = input("Please enter the number of hashes per layer 'k': ")
+        if not k.isdigit():
+            print("A Non Integer was given as input. k should be an integer.\n")
+            indexing = True
+            continue
+        else:
+            k = int(k)
+        #layerTables stores L*K random 'd' dimensional vectors and random offset values 'b'
+        #LHashTables_result constains hashtables for each layer with keys provided by it's K hash functions and values as the movie indices
+        layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
+        print("Index Structure Created\n")
+        indexing = False
     
     reIndex = False
     doSearch = False
     exitVar = False
-    
+    takeUserInput = True
     while not exitVar :
+        wantFeedback = True
         
-        print("To Re-Index the index structure Press 'R'")
-        print("To perform rNearestNeigbhor Search Press 'S'")
-        print("To Exit Press 'X'")
-        userInput = input("Your Response: ")
-        if userInput == 'X':
-            print("Exiting..")
-            break
-        elif userInput == "R":
-            print("Re-Indexing..")
-            reIndex = True
-        elif userInput == "S":
-            doSearch = True
+        if takeUserInput:
+            print("To Re-Index the index structure Press 'R'")
+            print("To perform rNearestNeigbhor Search Press 'S'")
+            print("To Exit Press 'X'")
+            userInput = input("Your Response: ")
+            if userInput == 'X':
+                print("Exiting..")
+                break
+            elif userInput == "R":
+                print("Re-Indexing..")
+                reIndex = True
+            elif userInput == "S":
+                doSearch = True
+            else:
+                print("Invalid input. Please choose among the following: \n")
+                takeUserInput = True
+                continue
         
         if reIndex:
-            L = int(input("Please enter the number of Layers 'L': "))
-            k = int(input("Please enter the number of hashes per layer 'k': "))
+            reIndex = True
+            while reIndex:
+                L = input("Please enter the number of Layers 'L': ")
+                if not L.isdigit():
+                    print("A Non Integer was given as input. L should be an integer. Please try again\n")
+                    reIndex = True
+                    continue
+                else:
+                    L = int(L)
+                k = input("Please enter the number of hashes per layer 'k': ")
+                if not k.isdigit():
+                    print("A Non Integer was given as input. k should be an integer. Please try again\n")
+                    reIndex = True
+                    continue
+                else:
+                    k = int(k)
+                    reIndex = False
             layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
             print("Index Structure Created Again\n")
             reIndex = False
         if doSearch:
-            movieid = int(input("Please enter a movieID: "))
-            r = int(input("Please enter the number of nearest neighbors 'r': "))
+            doSearch = True
+            while doSearch:
+                movieid = input("Please enter a movieID: ")
+                if not movieid.isdigit():
+                    print("A Non Integer was given as input. movieid should be an integer. Please try again\n")
+                    doSearch = True
+#                    takeUserInput = False
+#                    reIndex = False
+                    continue
+                else:
+                    movieid = int(movieid)
+                    doSearch = False
+                if movieid not in MoviesinLatentSpace.index:
+                    print("The given movieid does not exist. Please try again\n")
+                    doSearch = True
+#                    takeUserInput = False
+#                    reIndex = False
+                    continue
+                r = input("Please enter the number of nearest neighbors 'r': ")
+                if not r.isdigit():
+                    print("A Non Integer was given as input. r should be a non zero positive integer. Please try again\n")
+                    doSearch = True
+#                    takeUserInput = False
+#                    reIndex = False
+                    continue
+                else:
+                    r = int(r)
+                    doSearch = False
+                if r == 0:
+                    print("0 was given as input. r should be a non zero positive integer. Please try again\n")
+                    doSearch = True
+                    takeUserInput = False
+                    reIndex = False
+                    continue
             moviePoint = MoviesinLatentSpace_Matrix[list(MoviesinLatentSpace.index).index(movieid)].astype(np.float32)
-            nearestMovies,nearestMoviesBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+            nearestMovies,nearestMoviesBruteForce,nearestMoviesDistance,nearestMoviesDistanceBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+            nearestMoviesDistance,nearestMoviesDistanceBruteForce = list(np.array(nearestMoviesDistance)[0])[:r],list(np.array(nearestMoviesDistanceBruteForce)[0])[:r]
+            if len(nearestMovies) == 0:
+                print("The LSH based index structure didn't map any other movie in the same buckets.\n")
+                continue
+            if len(nearestMovies) != r:
+                print("The LSH based index structure didn't map enough movies in the same buckets.\n")
             nearestMoviesNames = [movieid_name_map[mid] for mid in nearestMovies]
             nearestMoviesBruteForceNames = [movieid_name_map[mid] for mid in nearestMoviesBruteForce]
-            print("Movies Similar to "+str(movieid_name_map[movieid])+"\n")
-            print("Results based on the LSH based rNearestNeighbors: \n"+str(nearestMoviesNames)+"\n")
-            print("Results based on Brute Force rNearestNeighbors: \n"+str(nearestMoviesBruteForceNames)+"\n")
-            feedback = input("Would you like to give feedback 'Y'/'N': ")
-            if feedback == 'Y':
-                print("Relevance Feedback not yet implemented\n")
-            else:
+            print("Movies Similar to '"+str(movieid_name_map[movieid])+"'\n")
+            print("Results based on the LSH based rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesNames,nearestMoviesDistance)))+"\n")
+            print("Results based on Brute Force rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesBruteForceNames,nearestMoviesDistanceBruteForce)))+"\n")
+            while wantFeedback:
+                feedback = input("Would you like to give feedback 'Y'/'N': ")
+                if feedback == 'Y':
+                    task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies)
+                    wantFeedback = True
+                elif feedback == 'N':
+                    wantFeedback = False
+                else:
+                    print("Invalid Input provided. Please try again.")
+                    wantFeedback = True
+            takeUserInput = True
+                    
+    
+    
+def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies) :
+    movieid_name_map = DataHandler.movieid_name_map
+    takeFeedback = True
+    while takeFeedback:
+        feedback = input("Relevance (1/0) for each of the "+ str(r) +" movies: ")
+        feedback_split = feedback.split(',')
+        if len(feedback_split) != len(nearestMovies):
+            print("Invalid Feedback string. Please give feedback for each of the movies.\n")
+            takeFeedback = True
+            continue
+        elif any(isinstance(x, int) for x in feedback_split):
+            print("Invalid Feedback string.\n")
+            takeFeedback = True
+            continue
+        else:
+            feedback = np.array([int(i) for i in feedback_split])
+            if not ((feedback<= 1 ).sum() == feedback.size):
+                print("Invalid Feedback string.\n")
+                takeFeedback = True
+            elif not ((feedback>= 0 ).sum() == feedback.size):
+                print("Invalid Feedback string.\n")
+                takeFeedback = True
                 continue
+            else:
+                takeFeedback = False
     
+    relevantFeedback = np.where(feedback == 1)[0]
+    irrelevantFeedback = np.where(feedback == 0)[0]
     
-
-
+    relevantMovieList = [nearestMovies[i] for i in relevantFeedback]
+    irrevelantMovieList = [nearestMovies[i] for i in irrelevantFeedback]
+    takeUserInput = True
+    while takeUserInput:
+        print("For LDE Dec-Hi Press 'LH'")
+        print("For LDE Regular Press 'LR'")
+        print("For Standard Rochio Press 'R'")
+        userInput = input("Your Response: ")
+        if userInput == 'LH':
+           newMoviePoint = relevanceFeedback.newQueryFromLDEDecHiFeedBack(moviePoint, relevantMovieList, irrevelantMovieList, nearestMovies, MoviesinLatentSpace)
+           takeUserInput = False
+        elif userInput == "LR":
+           newMoviePoint = relevanceFeedback.newQueryFromLDERegularFeedBack(moviePoint, relevantMovieList, irrevelantMovieList, nearestMovies, MoviesinLatentSpace) 
+           takeUserInput = False
+        elif userInput == "R":
+            newMoviePoint = relevanceFeedback.newQueryFromRochioFeedBack(moviePoint, relevantMovieList, irrevelantMovieList, MoviesinLatentSpace)
+            takeUserInput = False
+        else:
+            print("Invalid input. Please choose among the following: \n")
+            takeUserInput = True
+            continue
+    nearestMovies1,nearestMoviesBruteForce1,nearestMoviesDistance,nearestMoviesDistanceBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,newMoviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+    nearestMoviesDistance,nearestMoviesDistanceBruteForce = list(np.array(nearestMoviesDistance)[0])[:r],list(np.array(nearestMoviesDistanceBruteForce)[0])[:r]
+    nearestMoviesNames1 = [movieid_name_map[mid] for mid in nearestMovies1]
+    nearestMoviesBruteForceNames1 = [movieid_name_map[mid] for mid in nearestMoviesBruteForce1]
+    print("Movies Similar to "+str(movieid_name_map[movieid])+"\n")
+    print("Results based on the LSH based rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesNames1,nearestMoviesDistance)))+"\n")
+    print("Results based on Brute Force rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesBruteForceNames1,nearestMoviesDistanceBruteForce)))+"\n")
+            
 
