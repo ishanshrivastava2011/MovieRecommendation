@@ -1,11 +1,16 @@
 from computations import decompositions
 from data import DataHandler
 import util
+from computations import relevanceFeedback
+from data import taskRunner as tr
 import pandas as pd
 import time
 
-DataHandler.vectors()
+# DataHandler.vectors()
 t = time.time()
-X = DataHandler.actor_similarity_tagVector(3892753)
-print(sorted(X,key=lambda x:x[1],reverse=True))
+
+tr.task1_2CP()
+
+
+
 print('Query : ', time.time() -t)
