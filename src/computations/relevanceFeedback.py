@@ -151,7 +151,7 @@ def recommendMovies(q_vector):
     return [nonwatchedList[i] for i in distances][0:5]
 
 
-def newQueryFromFeedBack(new_query, recommended_movies, feedback):
+def newQueryFromFeedBack(recommended_movies, feedback):
     global nonwatchedList
     global aug_sim_matx
 
@@ -190,7 +190,7 @@ def runme():
             print("GoodBye........")
             break
         feedback = [int(i) for i in feedback.split(',')]
-        new_query = newQueryFromFeedBack(new_query, movies,feedback)
+        new_query = newQueryFromFeedBack(movies,feedback)
         print([movieid_name_map[nonwatchedList[i]] for i in new_query][0:5])
         # print(str(new_query) + "\n")
 
