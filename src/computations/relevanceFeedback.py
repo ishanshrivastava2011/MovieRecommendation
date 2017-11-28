@@ -171,7 +171,7 @@ def newQueryFromFeedBack(recommended_movies, feedback):
 
 
 def runme():
-    global q_vecto
+    global q_vector
     movieid_name_map = DataHandler.movieid_name_map
     enter_userid = 36  # input("UserID : ")
     userId = int(enter_userid)
