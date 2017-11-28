@@ -46,55 +46,83 @@ def loadCPSemantics():
 
 def loadPCASemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
-    return decompositions.PCADimensionReduction((movie_tag_df.transpose()), 5)
+    return decompositions.PCADimensionReduction((movie_tag_df), 15)
 
 def loadSVDSemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
-    return decompositions.SVDDecomposition((movie_tag_df.transpose()), 5)[0]
+    return decompositions.SVDDecomposition((movie_tag_df), 5)[0]
 
 def loadLDASemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
-    return np.array(decompositions.LDADecomposition(movie_tag_df.transpose(), 5, constants.genreTagsSpacePasses)[1].dense)
+    return np.array(decompositions.LDADecomposition(movie_tag_df, 5, constants.genreTagsSpacePasses)[1].dense)
 
-
-def loadBase(userId, func):
-    global movie_movie_similarity
+def loadBase(userId):
     global moviesWatched
-    global q_vector 
     global finalWeights
-    global aug_sim_matx
     global moviesList
     global nonwatchedList
-    global similarity_semantic_matrix
+    global indx
 
-    DataHandler.vectors()
-    DataHandler.createDictionaries1()
-    similarity_semantic_matrix = func()
-    similarity_semantic_matrix = ((similarity_semantic_matrix - similarity_semantic_matrix.min(axis=0) + 0.00001) \
-     / (similarity_semantic_matrix.max(axis=0) - similarity_semantic_matrix.min(axis=0) + 0.00001))
-
-    timestamps = np.array([item[1] for item in list(itertools.chain(*DataHandler.user_rated_or_tagged_date_map.values()))])
-    time_max = timestamps.max()
-    time_min = timestamps.min()
+    timestamps = np.array(
+        [item[1] for item in list(itertools.chain(*DataHandler.user_rated_or_tagged_date_map.values()))])
     moviesList = sorted(list(DataHandler.movie_tag_map.keys()))
     moviesRated = dict(DataHandler.user_movie_ratings_map.get(userId))
     moviesWatched = list(DataHandler.user_rated_or_tagged_map.get(userId))
     moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
     moviesWatched_array = np.array([movie[1] for movie in moviesWatched_timestamp])
+    indx, nonwatchedList = listIndex(moviesList, moviesWatched)
     time_max = timestamps.max()
     time_min = timestamps.min()
     timestamp_weights = (moviesWatched_array - time_min + 0.00001) \
-    /  (time_max - time_min + 0.00001)
+                        / (time_max - time_min + 0.00001)
     ratingWeights = np.array([moviesRated[movie[0]] for movie in moviesWatched_timestamp])
-    finalWeights = timestamp_weights*0.1 + ratingWeights*0.9
+    finalWeights = timestamp_weights * 0.1 + ratingWeights * 0.9
 
 
-    indx,nonwatchedList = listIndex(moviesList, moviesWatched)
+def runAllMethods():
+    global similarity_semantic_matrix
+
+    functions = [loadCPSemantics, loadPCASemantics, loadSVDSemantics, loadLDASemantics]
+    allSimilarities = []
+    for func in functions:
+        similarity_semantic_matrix = func()
+        similarity_semantic_matrix = ((similarity_semantic_matrix - similarity_semantic_matrix.min(axis=0) + 0.00001) \
+                        / (similarity_semantic_matrix.max(axis=0) - similarity_semantic_matrix.min(axis=0) + 0.00001))
+
+        vector = np.take(similarity_semantic_matrix, indx, axis=0)
+        q_vector = vector.astype(np.float32)
+
+        aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
+
+        distance = []
+        for vector in q_vector:
+            distance.append(euclideanMatrixVector(aug_sim_matx, vector))
+
+        distance = 1. / np.array(distance)
+        distance = distance.T.dot(finalWeights).astype(np.float32)
+        allSimilarities.append(distance)
+
+    similarities = np.array(allSimilarities).mean(axis=1)
+
+    return similarities
+
+
+def runDecomposition(func):
+    global q_vector
+    global aug_sim_matx
+    global similarity_semantic_matrix
+
+    similarity_semantic_matrix = func()
+    similarity_semantic_matrix = ((similarity_semantic_matrix - similarity_semantic_matrix.min(axis=0) + 0.00001) \
+     / (similarity_semantic_matrix.max(axis=0) - similarity_semantic_matrix.min(axis=0) + 0.00001))
+
     vector = np.take(similarity_semantic_matrix, indx, axis=0)
     # q_vector = vector.T.dot(finalWeights).astype(np.float32)
     q_vector = vector.astype(np.float32)
 
     aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
+
+    return aug_sim_matx
 
 
 def execute_query(q_vector):
@@ -125,8 +153,6 @@ def newQueryFromFeedBack(new_query, recommended_movies, feedback):
     global nonwatchedList
     global aug_sim_matx
 
-    j = np.linalg.norm(aug_sim_matx,axis=0)
-
     recommended_idx = [aug_sim_matx[nonwatchedList.index(i)] for i in recommended_movies]
 
     relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 1], axis=0)
@@ -139,7 +165,6 @@ def newQueryFromFeedBack(new_query, recommended_movies, feedback):
     new_q = ((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
     vals = np.power(new_q, aug_sim_matx)
 
-
     return np.argsort(np.prod(vals, axis=1))[::-1]
 
 
@@ -149,7 +174,10 @@ def runme():
     enter_userid = 36  # input("UserID : ")
     userId = int(enter_userid)
     times = time.time()
-    loadBase(userId,loadPCASemantics)
+    DataHandler.vectors()
+    DataHandler.createDictionaries1()
+    loadBase(userId)
+    runDecomposition(loadPCASemantics)
     new_query = q_vector
     movies = recommendMovies(new_query)
     named_movies = [movieid_name_map[i] for i in movies]
