@@ -468,11 +468,12 @@ def buildDF():
     movieCount = movie_tag_map.keys().__len__()
     createDictionaries1()
 
-    tagList = list(tag_movie_map.keys())
+    tagList = sorted(list(tag_movie_map.keys()))
     dfList = []
     movieList = []
+    all_movie_sorted = sorted(list(movie_tag_map.keys()))
 
-    for movie in movie_tag_map.keys():
+    for movie in all_movie_sorted:
         tagsInMovie = movie_tag_map[movie]
         tf_idf_map = dict()
         if tagsInMovie:

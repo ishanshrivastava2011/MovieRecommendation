@@ -15,6 +15,7 @@ aug_sim_matx = None
 moviesList = None
 finalWeights = None
 nonwatchedList = None
+indx = None
 
 def listIndex(full_list, sub_list):
     subset = set(sub_list)
@@ -67,8 +68,8 @@ def loadBase(userId):
         [item[1] for item in list(itertools.chain(*DataHandler.user_rated_or_tagged_date_map.values()))])
     moviesList = sorted(list(DataHandler.movie_tag_map.keys()))
     moviesRated = dict(DataHandler.user_movie_ratings_map.get(userId))
-    moviesWatched = list(DataHandler.user_rated_or_tagged_map.get(userId))
-    moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
+    moviesWatched = sorted(list(DataHandler.user_rated_or_tagged_map.get(userId)))
+    moviesWatched_timestamp = sorted(list(DataHandler.user_rated_or_tagged_date_map.get(userId)), key=itemgetter(0))
     moviesWatched_array = np.array([movie[1] for movie in moviesWatched_timestamp])
     indx, nonwatchedList = listIndex(moviesList, moviesWatched)
     time_max = timestamps.max()
@@ -82,7 +83,7 @@ def loadBase(userId):
 def runAllMethods():
     global similarity_semantic_matrix
 
-    functions = [loadCPSemantics, loadPCASemantics, loadSVDSemantics, loadLDASemantics]
+    functions = [loadPCASemantics]
     allSimilarities = []
     for func in functions:
         similarity_semantic_matrix = func()
@@ -98,9 +99,10 @@ def runAllMethods():
         for vector in q_vector:
             distance.append(euclideanMatrixVector(aug_sim_matx, vector))
 
-        distance = 1. / np.array(distance)
-        distance = distance.T.dot(finalWeights).astype(np.float32)
-        allSimilarities.append(distance)
+        similarity = 1. / np.array(distance)
+        similarity = similarity.T.dot(finalWeights).astype(np.float32)
+        similarity = similarity - similarity.min() + 0.00001 / (similarity.max() - similarity.min() + 0.00001)
+        allSimilarities.append(similarity)
 
     similarities = np.array(allSimilarities).mean(axis=1)
 
