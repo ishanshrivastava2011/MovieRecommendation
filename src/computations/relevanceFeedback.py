@@ -16,6 +16,7 @@ moviesList = None
 finalWeights = None
 nonwatchedList = None
 indx = None
+sem_matrix_map = []
 
 def listIndex(full_list, sub_list):
     subset = set(sub_list)
@@ -82,6 +83,7 @@ def loadBase(userId):
 
 def runAllMethods():
     global similarity_semantic_matrix
+    global sem_matrix_map
 
     functions = [loadPCASemantics]
     allSimilarities = []
@@ -94,10 +96,11 @@ def runAllMethods():
         q_vector = vector.astype(np.float32)
 
         aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
+        sem_matrix_map.append(aug_sim_matx)
 
         distance = []
-        for vector in q_vector:
-            distance.append(euclideanMatrixVector(aug_sim_matx, vector))
+        for v in q_vector:
+            distance.append(euclideanMatrixVector(aug_sim_matx, v))
 
         similarity = 1. / np.array(distance)
         similarity = similarity.T.dot(finalWeights).astype(np.float32)
