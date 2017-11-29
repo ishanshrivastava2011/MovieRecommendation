@@ -13,6 +13,8 @@ from computations import personalizedpagerank as ppr
 from computations import LSH as lsh
 from computations import rNearestNeighborSimilarMovies
 from computations import relevanceFeedback
+from scipy import sparse
+from computations import knn
 DataHandler.vectors()
 global wt
 import sklearn.metrics.pairwise as pairwise
@@ -449,12 +451,19 @@ def task3():
     DataHandler.createDictionaries1()
     movieid_name_map = DataHandler.movieid_name_map
     MoviesinLatentSpace = pd.read_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv',index_col = 0)
+    moviesList = list(MoviesinLatentSpace.index)
     MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
     print("Mapped all the movies to 500 dimensional space\n")
     d = len(MoviesinLatentSpace.columns)
     w = constants.W
     MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
     
+    inputFile = pd.read_csv(constants.DIRECTORY+'Task3_MovieIds.csv',header=None )
+    movieids_input = list(inputFile[0])
+    num_moviesForIndexing = len(movieids_input)
+    
+    movieidsIndices_input = [moviesList.index(mid) for mid in movieids_input]
+    MoviesinLatentSpace_Matrix_Input = MoviesinLatentSpace_Matrix[movieidsIndices_input]
     indexing = True
     while indexing:
         L = input("Please enter the number of Layers 'L': ")
@@ -471,9 +480,11 @@ def task3():
             continue
         else:
             k = int(k)
+        
+        print("Creating the index structure, considering "+str(num_moviesForIndexing)+" movies")
         #layerTables stores L*K random 'd' dimensional vectors and random offset values 'b'
         #LHashTables_result constains hashtables for each layer with keys provided by it's K hash functions and values as the movie indices
-        layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
+        layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix_Input)
         print("Index Structure Created\n")
         indexing = False
     
@@ -520,7 +531,8 @@ def task3():
                 else:
                     k = int(k)
                     reIndex = False
-            layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix)
+            print("Creating the index structure, considering "+str(num_moviesForIndexing)+" movies")    
+            layerTables,LHashTables_result = lsh.createAndGetLSH_IndexStructure(L,k,d,w,MoviesinLatentSpace_Matrix_Input)
             print("Index Structure Created Again\n")
             reIndex = False
         if doSearch:
@@ -530,6 +542,7 @@ def task3():
                 if not movieid.isdigit():
                     print("A Non Integer was given as input. movieid should be an integer. Please try again\n")
                     doSearch = True
+
 #                    takeUserInput = False
 #                    reIndex = False
                     continue
@@ -558,8 +571,8 @@ def task3():
                     takeUserInput = False
                     reIndex = False
                     continue
-            moviePoint = MoviesinLatentSpace_Matrix[list(MoviesinLatentSpace.index).index(movieid)].astype(np.float32)
-            nearestMovies,nearestMoviesBruteForce,nearestMoviesDistance,nearestMoviesDistanceBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+            moviePoint = MoviesinLatentSpace_Matrix[moviesList.index(movieid)].astype(np.float32)
+            nearestMovies,nearestMoviesBruteForce,nearestMoviesDistance,nearestMoviesDistanceBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result,movieidsIndices_input,movieids_input)
             nearestMoviesDistance,nearestMoviesDistanceBruteForce = list(np.array(nearestMoviesDistance)[0])[:r],list(np.array(nearestMoviesDistanceBruteForce)[0])[:r]
             if len(nearestMovies) == 0:
                 print("The LSH based index structure didn't map any other movie in the same buckets.\n")
@@ -574,7 +587,7 @@ def task3():
             while wantFeedback:
                 feedback = input("Would you like to give feedback 'Y'/'N': ")
                 if feedback == 'Y':
-                    task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies)
+                    task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies,movieidsIndices_input,movieids_input)
                     wantFeedback = True
                 elif feedback == 'N':
                     wantFeedback = False
@@ -582,10 +595,10 @@ def task3():
                     print("Invalid Input provided. Please try again.")
                     wantFeedback = True
             takeUserInput = True
-                    
-    
-    
-def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies) :
+
+
+
+def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies,movieidsIndices_input,movieids_input) :
     movieid_name_map = DataHandler.movieid_name_map
     takeFeedback = True
     while takeFeedback:
@@ -635,12 +648,60 @@ def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layer
             print("Invalid input. Please choose among the following: \n")
             takeUserInput = True
             continue
-    nearestMovies1,nearestMoviesBruteForce1,nearestMoviesDistance,nearestMoviesDistanceBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,newMoviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result)
+    nearestMovies1,nearestMoviesBruteForce1,nearestMoviesDistance,nearestMoviesDistanceBruteForce = rNearestNeighborSimilarMovies.getRNearestNeighbors(movieid,newMoviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result,movieidsIndices_input,movieids_input)
     nearestMoviesDistance,nearestMoviesDistanceBruteForce = list(np.array(nearestMoviesDistance)[0])[:r],list(np.array(nearestMoviesDistanceBruteForce)[0])[:r]
     nearestMoviesNames1 = [movieid_name_map[mid] for mid in nearestMovies1]
     nearestMoviesBruteForceNames1 = [movieid_name_map[mid] for mid in nearestMoviesBruteForce1]
-    print("Movies Similar to "+str(movieid_name_map[movieid])+"\n")
+    print("Movies Similar to '"+str(movieid_name_map[movieid])+"'\n")
     print("Results based on the LSH based rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesNames1,nearestMoviesDistance)))+"\n")
     print("Results based on Brute Force rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesBruteForceNames1,nearestMoviesDistanceBruteForce)))+"\n")
-            
+    changeInQuery = np.array(newMoviePoint-moviePoint)
+    
+    changeInQueryIndices = ["Semantic "+str(i) for i in np.argsort(changeInQuery[0])[::-1]]
+    changeInQuery = np.sort(changeInQuery[0])[::-1]
+    changeInQuery,changeInQueryIndices = list(np.array(changeInQuery)),list(np.array(changeInQueryIndices))
+    print("Change in the query: \n"+str(list(zip(changeInQueryIndices,changeInQuery)))+"\n")
 
+def createTrainTestData(allMovieData):
+    allMoviesList = list(allMovieData.index)
+    allMovies_Matrix = np.matrix(allMovieData,dtype = np.float32)
+    
+    labelledMovies = pd.read_csv(constants.DIRECTORY+'Task5_LabelledMovies.csv')
+    
+    train_movieids = list(labelledMovies.movieid)
+    train_movieidsIndices = [allMoviesList.index(mid) for mid in train_movieids]
+    train_movies_Matrix = allMovies_Matrix[train_movieidsIndices]
+    
+    test_movieids = list(set(allMoviesList)-set(train_movieids))
+    test_movieidsIndices = [allMoviesList.index(mid) for mid in test_movieids]
+    test_movies_Matrix = allMovies_Matrix[test_movieidsIndices]
+    
+    train_label = list(labelledMovies.label)
+    return train_movies_Matrix,train_label,test_movies_Matrix,test_movieids
+
+def task5_1():
+    classify = True
+    while classify:
+        r = input("Please enter the number of nearest neighbors 'r': ")
+        if not r.isdigit():
+            print("A Non Integer was given as input. r should be a non zero positive integer. Please try again\n")
+            classify = True
+            continue
+        else:
+            r = int(r)
+            classify = False
+        if r == 0:
+            print("0 was given as input. r should be a non zero positive integer. Please try again\n")
+            classify = True
+            continue
+    DataHandler.createDictionaries1()
+    movieid_name_map = DataHandler.movieid_name_map
+    allMovieData = DataHandler.load_movie_tag_df()
+    train_movies_Matrix,train_label,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
+    trainSparseMatrix = sparse.csr_matrix(train_movies_Matrix)
+    testSparseMatrix = sparse.csr_matrix(test_movies_Matrix)
+    NNForAllTest = knn.NN(trainSparseMatrix,testSparseMatrix)
+    maxKNNLabels = knn.sortAllNNAndGetLabels(NNForAllTest,r,train_label)
+    predictions = [max(set(NNLabels[0:r]), key=NNLabels[0:r].count) for NNLabels in maxKNNLabels]
+    test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
+    print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")

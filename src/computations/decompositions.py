@@ -51,6 +51,7 @@ def LDADecomposition(inputMatrix, num_topics, passes):
     # before training/inference:
     np.random.seed(SOME_FIXED_SEED)
     Lda = gensim.models.ldamodel.LdaModel
+    
     ldamodel = Lda(corpus, num_topics=num_topics, id2word = dictionaryFromCorpus, passes=passes, random_state=1)
     
     return ldamodel,corpus,id_Term_map

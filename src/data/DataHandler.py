@@ -12,7 +12,7 @@ from util import formatter
 
 import numpy as np
 from operator import itemgetter
-
+import pickle
 max_rank = 0
 min_rank = sys.maxsize
 
@@ -463,6 +463,35 @@ def similarActors_LDA(givenActor):
     top10 = sorted(givenActor_similarity.items(),key = itemgetter(1),reverse=False)[0:11]
     return top10
 
+def buildDF_TF():
+    createDictionaries1()
+    tagList = sorted(list(tag_movie_map.keys()))
+    dfList = []
+    movieList = []
+    for movie in movie_tag_map.keys():
+        tagsInMovie = movie_tag_map[movie]
+        tf_idf_map = dict()
+        if tagsInMovie:
+            movieList.append(movie)
+            for tag in tagList:
+                tf_numerator = 0
+                for temp_movie, datetime in tag_movie_map[tag]:
+                    if movie == temp_movie:
+                        tf_numerator += 1
+                tf = tf_numerator 
+                tf_idf = tf
+                tf_idf_map[tag] = tf_idf
+            dfList.append(tf_idf_map)
+    return dfList,tagList,movieList
+
+def load_movie_tag_tf_df():
+    try:
+        movie_tag_tf_df=pd.read_pickle(constants.DIRECTORY + "movie_tag_tf_df.pickel")
+    except (OSError, IOError) as e:
+        dfList,tagList,movieList = buildDF_TF()
+        movie_tag_tf_df = pd.DataFrame(dfList, columns=tagList, index=movieList)
+        movie_tag_tf_df.to_pickle(constants.DIRECTORY + "movie_tag_tf_df.pickel")
+    return movie_tag_tf_df
 
 def buildDF():
     movieCount = movie_tag_map.keys().__len__()

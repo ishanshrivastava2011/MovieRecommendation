@@ -27,7 +27,7 @@ def getMoviesInLDifferentHashBuckets(L,point,w,layerTables,LHashTables):
 
 #movieid = moviesList[4]
 #r = 10
-def getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result):
+def getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LHashTables_result,movieidsIndices_input,movieids_input):
     L = len(layerTables)
     w = constants.W
     MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
@@ -49,9 +49,12 @@ def getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LH
     
     
     #Brute Forece method for Finding similarities
-    moviesListTest = moviesList
-    moviesListTest.remove(movieid)
-    allButGivenMovieList = list(set(range(MoviesinLatentSpace_Matrix.shape[0]))-set([givenMovieidIndex]))
+#    moviesListTest = moviesList
+    moviesListTest = movieids_input
+    if movieid in moviesListTest:
+        moviesListTest.remove(movieid)
+    
+    allButGivenMovieList = list(set(movieidsIndices_input)-set([givenMovieidIndex]))
     distancesTest = relevanceFeedback.euclideanMatrixVector(MoviesinLatentSpace_Matrix[allButGivenMovieList],moviePoint)
     nearestMoviesDistanceTest = np.sort(distancesTest[0])[:r]
     nearestMovieIndicesTest = np.argsort(distancesTest[0])
