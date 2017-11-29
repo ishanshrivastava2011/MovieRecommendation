@@ -60,7 +60,8 @@ def loadCPSemantics():
     return np.take(temp, tagged_movies_idx, axis=0)
 
 def loadPCASemantics():
-    return pd.read_pickle(constants.DIRECTORY +"PCA_decomposition")#decompositions.PCADimensionReduction((movie_tag_df), 15)
+    movie_tag_df = DataHandler.load_movie_tag_df()
+    return decompositions.PCADimensionReduction((movie_tag_df), 15)
 
 def loadSVDSemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
@@ -249,8 +250,8 @@ def runme():
     enter_userid = 36  # input("UserID : ")
     userId = int(enter_userid)
     times = time.time()
-    #DataHandler.vectors()
-    #DataHandler.createDictionaries1()
+    DataHandler.vectors()
+    DataHandler.createDictionaries1()
     loadBase(userId)
     # runDecomposition(loadPCASemantics)
 
@@ -308,9 +309,11 @@ def newQueryFromLDERegularFeedBack(moviePoint, relevantMovieList, irrevelantMovi
     return (moviePoint + sumRelPoint - sumNonRelPoint).astype(np.float32)
 
 def task1d(userId) :
+    DataHandler.createDictionaries1()
+    DataHandler.vectors()
     loadBase(userId);
     movieRatedSeed = list(zip(moviesWatched, finalWeights))#DataHandler.userMovieOrders(userId)
-    P = pd.read_pickle(constants.DIRECTORY +"movie_tag_df.pickle")#DataHandler.load_movie_tag_df()
+    P = DataHandler.load_movie_tag_df()#DataHandler.load_movie_tag_df()
     moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
     euclidean_distance = pairwise.euclidean_distances(P)
     epsilon = np.matrix(np.zeros(euclidean_distance.shape) + 0.000001)

@@ -492,9 +492,15 @@ def buildDF():
 
 
 def load_movie_tag_df():
-    dfList, tagList, movieList = buildDF()
-    return pd.DataFrame(dfList, columns=tagList, index=movieList)
-
+    movie_tag = None
+    try:
+        movie_tag = pd.read_pickle(constants.DIRECTORY +"movie_tag_df.pickle")
+    except (OSError, IOError) as e:
+        dfList, tagList, movieList = buildDF()
+        movie_tag = pd.DataFrame(dfList, columns=tagList, index=movieList)
+        movie_tag.to_pickle(constants.DIRECTORY + "movie_tag_df.pickle")
+    return movie_tag
+    
 def movie_movie_Similarity(movie_tag_df):
     movies = movie_tag_df.index
     dfList = []
