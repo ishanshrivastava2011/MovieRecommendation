@@ -9,6 +9,7 @@ from numba import guvectorize, float32,jit
 import sklearn.metrics.pairwise as pairwise
 import pandas as pd
 from computations import personalizedpagerank as ppr
+from computations import pickle
 
 movie_movie_similarity = None
 moviesWatched_timestamp_sorted = None
@@ -61,11 +62,11 @@ def loadCPSemantics():
 
 def loadPCASemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
-    return decompositions.PCADimensionReduction((movie_tag_df), 15)
+    return pickle.create_PCA_pickle(movie_tag_df)#decompositions.PCADimensionReduction((movie_tag_df), 15)
 
 def loadSVDSemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
-    return decompositions.SVDDecomposition((movie_tag_df), 15)[0]
+    return pickle.create_SVD_pickle(movie_tag_df) #decompositions.SVDDecomposition((movie_tag_df), 800)[0]
 
 def loadLDASemantics():
     #Load Pickle
@@ -188,7 +189,6 @@ def execute_query(q_vector):
     distance = []
     for vector in q_vector:
         distance.append(euclideanMatrixVector(aug_semantic_matx, vector))
-
     distance = 1./np.array(distance)
     distance = distance.T.dot(finalWeights).astype(np.float32)
 
