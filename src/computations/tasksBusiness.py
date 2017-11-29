@@ -416,24 +416,6 @@ def task1c(userId):
     print('Movies Watched by the user in order: '+ str(watchedMovieNames))
     print('Top 5 movies : '+ str(resultMovieNames))
 
-def task1d(userId) :
-    DataHandler.createDictionaries1()
-    movieRatedSeed = DataHandler.userMovieOrders(userId)
-    
-    P = DataHandler.load_movie_tag_df()
-    moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
-    movie_movie_similarity = pairwise.euclidean_distances(P)
-    movie_movie_similarity = pd.DataFrame(movie_movie_similarity)
-    prData = ppr.personalizedPageRankWeighted(movie_movie_similarity, movieRatedSeed, 0.9)
-    rankedItems = sorted(list(map(lambda x:(moviesList[x[0]],x[1]),prData.itertuples())),key=lambda x:x[1], reverse=True)
-    movieid_name_map = DataHandler.movieid_name_map
-
-    seedmovieNames = [movieid_name_map[k] for k,y in movieRatedSeed]
-    print("Movies similar to the users seed movies " + str(seedmovieNames) + " are:")
-    required =  sorted([(movieid_name_map[k],y) for (k,y) in rankedItems if k not in [k for k,y in movieRatedSeed]],key=lambda x: x[1], reverse=True)
-    return required[:5]
-    
-
 def task3_MDS_SVD(iterations) :
     P = DataHandler.load_movie_tag_df() 
     
@@ -443,26 +425,25 @@ def task3_MDS_SVD(iterations) :
    # movieList = dissimilarities.index
     #dissimilarities=np.matrix(dissimilarities)
     
-    n_samples = dissimilarities.shape[0]
+     dissimilarities = pairwise.euclidean_distances(P)
     
     
-    for it in range(iterations) :
-        dis = pairwise.euclidean_distances(X)
-        disparities = dissimilarities
+    
+    #A = pd.DataFrame(U, index = P.index)
+    
+    #A.to_csv('foo.csv')
+    
+    #dissimilarities = np.matrix(U) * np.matrix(U.T)
+    #movieList = dissimilarities.index
+    #dissimilarities=np.matrix(dissimilarities)
+    
+    
+    dis = pairwise.euclidean_distances(U)
         
         # Compute stress
-        stress = np.square((dis.ravel() - disparities.ravel())).sum() / 2
+    stress = np.square((dis.ravel() - dissimilarities.ravel())).sum() / 2
         
-       # Update X using the Guttman transform
-        dis[dis == 0] = 1e-5
-        ratio = disparities / dis
-        B = - ratio
         
-        B[np.diag_indices_from(ratio)] += ratio.sum(axis=1).T
-        X = 1. / n_samples * np.dot(B, X)
-        
-        print('it: %d, stress %s' % (it, stress))
-
 def task3():
     #3.1
     DataHandler.createDictionaries1()

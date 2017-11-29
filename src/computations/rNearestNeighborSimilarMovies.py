@@ -37,7 +37,7 @@ def getRNearestNeighbors(movieid,moviePoint,r,MoviesinLatentSpace,layerTables,LH
     uniqueNearbyMovieIndices = list(set(nearbyMovieIndices))
     
     print('\nNumber of Unique movies considered: '+str(len(uniqueNearbyMovieIndices)))
-    print('Overall number of movies considered: '+str(len(nearbyMovieIndices+"\n")))
+    print('Overall number of movies considered: '+str(len(nearbyMovieIndices))+"\n")
     
     uniqueNearbyMovieIndices = list(set(nearbyMovieIndices)-set([givenMovieidIndex]))
     nearbyMovieList = [moviesList[i ] for i in uniqueNearbyMovieIndices]

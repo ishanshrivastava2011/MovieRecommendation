@@ -6,6 +6,9 @@ from util import constants
 from operator import itemgetter
 import numpy as np
 from numba import guvectorize, float32,jit
+import sklearn.metrics.pairwise as pairwise
+import pandas as pd
+from computations import personalizedpagerank as ppr
 
 movie_movie_similarity = None
 moviesWatched_timestamp_sorted = None
@@ -57,8 +60,7 @@ def loadCPSemantics():
     return np.take(temp, tagged_movies_idx, axis=0)
 
 def loadPCASemantics():
-    movie_tag_df = DataHandler.load_movie_tag_df()
-    return decompositions.PCADimensionReduction((movie_tag_df), 15)
+    return pd.read_pickle(constants.DIRECTORY +"PCA_decomposition")#decompositions.PCADimensionReduction((movie_tag_df), 15)
 
 def loadSVDSemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()
@@ -68,6 +70,11 @@ def loadLDASemantics():
     #Load Pickle
     #Return Pickled Semantics
     return None
+   # return pd.read_pickle(constants.DIRECTORY + "SVD_decomposition")#decompositions.SVDDecomposition((movie_tag_df), 5)[0]
+
+#def loadLDASemantics():
+ #   movie_tag_df = pd.read_pickle(constants.DIRECTORY +"movie_tag_df")#DataHandler.load_movie_tag_df()
+  #  return np.array(decompositions.LDADecomposition(movie_tag_df, 5, constants.genreTagsSpacePasses)[1].dense)
 
 def loadBase(userId):
     global moviesWatched
@@ -242,8 +249,8 @@ def runme():
     enter_userid = 36  # input("UserID : ")
     userId = int(enter_userid)
     times = time.time()
-    DataHandler.vectors()
-    DataHandler.createDictionaries1()
+    #DataHandler.vectors()
+    #DataHandler.createDictionaries1()
     loadBase(userId)
     # runDecomposition(loadPCASemantics)
 
@@ -299,3 +306,23 @@ def newQueryFromLDEDecHiFeedBack(moviePoint, relevantMovieList, irrevelantMovieL
 def newQueryFromLDERegularFeedBack(moviePoint, relevantMovieList, irrevelantMovieList, nearestMovies, MoviesinLatentSpace):
     sumRelPoint,sumNonRelPoint = returnSumOfRel_SumNonRel(relevantMovieList,irrevelantMovieList,MoviesinLatentSpace)
     return (moviePoint + sumRelPoint - sumNonRelPoint).astype(np.float32)
+
+def task1d(userId) :
+    loadBase(userId);
+    movieRatedSeed = list(zip(moviesWatched, finalWeights))#DataHandler.userMovieOrders(userId)
+    P = pd.read_pickle(constants.DIRECTORY +"movie_tag_df.pickle")#DataHandler.load_movie_tag_df()
+    moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
+    euclidean_distance = pairwise.euclidean_distances(P)
+    epsilon = np.matrix(np.zeros(euclidean_distance.shape) + 0.000001)
+    movie_movie_similarity = 1/(epsilon + euclidean_distance)
+    movie_movie_similarity = pd.DataFrame(movie_movie_similarity)
+    prData = ppr.personalizedPageRankWeighted(movie_movie_similarity, movieRatedSeed, 0.9)
+    rankedItems = sorted(list(map(lambda x:(moviesList[x[0]],x[1]),prData.itertuples())),key=lambda x:x[1], reverse=True)
+    movieid_name_map = DataHandler.movieid_name_map
+
+    seedmovieNames = [movieid_name_map[k] for k,y in movieRatedSeed]
+    print("Movies similar to the users seed movies " + str(seedmovieNames) + " are:")
+    required =  sorted([(movieid_name_map[k],y) for (k,y) in rankedItems if k not in [k for k,y in movieRatedSeed]],key=lambda x: x[1], reverse=True)
+    print("--------------------------------------")
+    print (required[:5])
+    
