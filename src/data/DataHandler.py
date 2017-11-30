@@ -80,41 +80,6 @@ def dateParse(date):
 
     return year*365*24*3600 + month*30*24*3600 + day*24*3600 + hour*3600 + min*60 + sec
 
-
-def vectors():
-    global max_rank
-    global min_rank
-    global tag_count
-    global max_date
-    global min_date
-    t = time.time()
-    
-    for row in tag_id_df.itertuples():
-        tag_id_map[row.tagId] = row.tag
-        id_tag_map[row.tag] = row.tagId
-    for row in user_ratings_df.itertuples():
-        user_rated_or_tagged_map[row.userid].add(row.movieid)
-        user_rated_or_tagged_date_map[row.userid].add((row.movieid,dateParse(row.timestamp)))
-            
-    tagset = set()
-    for row in tag_movie_df.itertuples():
-        date_time = dateParse(row.timestamp)
-        if date_time > max_date:
-            max_date = date_time
-        if date_time < min_date:
-            min_date = date_time
-        tagset.add(row.tagid)
-        user_rated_or_tagged_map[row.userid].add(row.movieid)
-        tag_movie_map[row.tagid].append((row.movieid, date_time))
-        user_tag_map[row.userid].add((row.tagid, date_time))
-        tag_user_map[row.tagid].add((row.userid, date_time))
-        movie_tag_map[row.movieid].add((row.tagid, date_time))
-        user_rated_or_tagged_date_map[row.userid].add((row.movieid,date_time))
-        # tag_timestamp_map[row.tagid]=dateutil.parser.parse(row.timestamp).timestamp()
-    tag_count = tagset.__len__()
-    tagset.clear()
-    print('Main : ', time.time() - t)
-
 def getGenreMoviesMap():
     genre_movies_map = {}
     for row in genre_movie_df.itertuples():
@@ -126,6 +91,42 @@ def getGenreMoviesMap():
                 genre_movies_map[genre] = [row.movieid]
     return genre_movies_map
 
+def vectors():
+    global max_rank
+    global min_rank
+    global tag_count
+    global max_date
+    global min_date
+    t = time.time()
+    if len(tag_id_map.keys()) == 0 or len(id_tag_map.keys()) == 0:
+        for row in tag_id_df.itertuples():
+            tag_id_map[row.tagId] = row.tag
+            id_tag_map[row.tag] = row.tagId
+    if len(user_rated_or_tagged_map.keys()) == 0 or len(user_rated_or_tagged_date_map.keys()) == 0:
+        for row in user_ratings_df.itertuples():
+            user_rated_or_tagged_map[row.userid].add(row.movieid)
+            user_rated_or_tagged_date_map[row.userid].add((row.movieid,dateParse(row.timestamp)))
+            
+    if len(tag_movie_map.keys()) == 0 or len(user_tag_map.keys()) == 0 or len(tag_user_map.keys()) == 0 or len(movie_tag_map.keys()) == 0 or len(user_rated_or_tagged_map.keys()) == 0 or len(user_rated_or_tagged_date_map.keys()) == 0:       
+        tagset = set()
+        for row in tag_movie_df.itertuples():
+            date_time = dateParse(row.timestamp)
+            if date_time > max_date:
+                max_date = date_time
+            if date_time < min_date:
+                min_date = date_time
+            tagset.add(row.tagid)
+            user_rated_or_tagged_map[row.userid].add(row.movieid)
+            tag_movie_map[row.tagid].append((row.movieid, date_time))
+            user_tag_map[row.userid].add((row.tagid, date_time))
+            tag_user_map[row.tagid].add((row.userid, date_time))
+            movie_tag_map[row.movieid].add((row.tagid, date_time))
+            user_rated_or_tagged_date_map[row.userid].add((row.movieid,date_time))
+            # tag_timestamp_map[row.tagid]=dateutil.parser.parse(row.timestamp).timestamp()
+            tag_count = tagset.__len__()
+            tagset.clear()
+    print('Main : ', time.time() - t)
+    
 def createDictionaries1():
     global max_rank
     global min_rank
@@ -133,40 +134,32 @@ def createDictionaries1():
     global max_date
     global user_movie_ratings_map
     global min_date
-    for row in movie_actor_df.itertuples():
-        if row.actor_movie_rank < min_rank:
-            min_rank = row.actor_movie_rank
-        if row.actor_movie_rank > max_rank:
-            max_rank = row.actor_movie_rank
-        actor_movie_rank_map[row.actorid].add((row.movieid, row.actor_movie_rank))
-        movie_actor_rank_map[row.movieid].add((row.actorid, row.actor_movie_rank))
-        actor_movie_map[row.actorid].add((row.movieid))
-        movie_actor_map[row.movieid].add((row.actorid))
-        uniqueRanks.add(row.actor_movie_rank)
-    
-    for row in genre_movie_df.itertuples():
-        genres_list = row.genres.split("|")
-        for genre in genres_list:
-            genre_movie_map[genre].add(row.movieid)
-            movie_genre_map[row.movieid].add(genre)
-        movie_year_map[row.movieid]=row.year
-        year_movie_map[row.year]=row.movieid
-        movieid_name_map[row.movieid]=row.moviename
-        movie_id_map[row.moviename] = row.movieid
-    for row in user_ratings_df.itertuples():
-        user_movie_ratings_map[row.userid].append((row.movieid, row.rating/5.0))
-        movie_ratings_map[row.movieid].append(row.rating)
-        uniqueRatings.add(row.rating)
-# def load_genre_count_matrix(given_genre):
-# 	for row in genre_movie_df.itertuples():
-# 		genres_list = row.genres.split("|")
-# 		for genre in genres_list:
-# 			genre_movie_map[genre].add(row.movieid)
-#
-# 	tagList = sorted(list(tag_movie_map.keys()))
-# 	for movie in genre_movie_map[given_genre]:
-# 		tag_count_movie = dict([(tag, len(filter(lambda x: x == movie, tag_movie_map[tag]))) for tag in tagList])
-
+    if len(movie_actor_rank_map.keys()) == 0 or len(movie_actor_map.keys()) == 0 or len(uniqueRanks) == 0:
+        for row in movie_actor_df.itertuples():
+            if row.actor_movie_rank < min_rank:
+                min_rank = row.actor_movie_rank
+            if row.actor_movie_rank > max_rank:
+                max_rank = row.actor_movie_rank
+            actor_movie_rank_map[row.actorid].add((row.movieid, row.actor_movie_rank))
+            movie_actor_rank_map[row.movieid].add((row.actorid, row.actor_movie_rank))
+            actor_movie_map[row.actorid].add((row.movieid))
+            movie_actor_map[row.movieid].add((row.actorid))
+            uniqueRanks.add(row.actor_movie_rank)
+    if len(genre_movie_map.keys()) == 0 or len(movie_genre_map.keys()) == 0 or len(movie_year_map.keys()) == 0 or len(year_movie_map.keys()) == 0 or len(movieid_name_map.keys()) == 0:
+        for row in genre_movie_df.itertuples():
+            genres_list = row.genres.split("|")
+            for genre in genres_list:
+                genre_movie_map[genre].add(row.movieid)
+                movie_genre_map[row.movieid].add(genre)
+            movie_year_map[row.movieid]=row.year
+            year_movie_map[row.year]=row.movieid
+            movieid_name_map[row.movieid]=row.moviename
+            movie_id_map[row.moviename] = row.movieid
+    if len(user_movie_ratings_map.keys()) == 0 or len(movie_ratings_map.keys()) == 0 or len(uniqueRatings) == 0:   
+        for row in user_ratings_df.itertuples():
+            user_movie_ratings_map[row.userid].append((row.movieid, row.rating/5.0))
+            movie_ratings_map[row.movieid].append(row.rating)
+            uniqueRatings.add(row.rating)
 
 def load_genre_matrix(given_genre):
 	movieCount = movie_tag_map.keys().__len__()

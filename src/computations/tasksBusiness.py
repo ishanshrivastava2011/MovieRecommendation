@@ -708,6 +708,7 @@ def LDA_SIM(userid):
         ldaModel = pickle.load(open(constants.DIRECTORY + "ldaModel.pickle", "rb"))
         doc_term_matrix,id_Term_map = pickle.load(open(constants.DIRECTORY + "doc_term_matrix.pickle", "rb")),pickle.load(open(constants.DIRECTORY + "id_Term_map.pickle", "rb"))
     except (OSError, IOError) as e:
+        print("1")
         ldaModel,doc_term_matrix,id_Term_map  =  decompositions.LDADecomposition(movie_tag_df,50,constants.genreTagsSpacePasses)
         pickle.dump(ldaModel, open(constants.DIRECTORY + "ldaModel.pickle", "wb"))
         pickle.dump(doc_term_matrix, open(constants.DIRECTORY + "doc_term_matrix.pickle", "wb"))
