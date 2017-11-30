@@ -43,17 +43,22 @@ def task1_2Decompostions(func, userid):
     rf.runDecomposition(func)
 
     new_query = rf.q_vector
-    movies = rf.recommendMovies(new_query)
+    movies, distances = rf.recommendMovies(new_query)
     named_movies = [movieid_name_map[i] for i in movies]
     print('Top 5 movies : ' + str(named_movies))
+    for i in range(0, len(named_movies)):
+        print(named_movies[i] + str(distances[i]))
+    print("---------------------")
     while True:
         feedback = input("Relevance (1/0) for each of the 5 movies: ")
         if feedback == 'exit':
             print("GoodBye........")
             break
         feedback = [int(i) for i in feedback.split(',')]
-        new_query = rf.newQueryFromFeedBack(movies, feedback)
-        print([movieid_name_map[rf.nonwatchedList[i]] for i in new_query][0:5])
+        new_query, weights = rf.newQueryFromFeedBack(movies, feedback)
+        movieNames = [movieid_name_map[rf.nonwatchedList[i]] for i in new_query][0:5]
+        for i in range(0, len(movieNames)):
+            print(movieNames[i] + str(weights[i]))
         # print(str(new_query) + "\n")
 
 def task1_2PCA():

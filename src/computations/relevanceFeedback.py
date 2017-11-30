@@ -211,17 +211,17 @@ def execute_query(q_vector):
     distance = distance.T.dot(finalWeights).astype(np.float32)
 
     print(' query ---- ' + str(time.time() - times) + ' ---- query')
-    return np.argsort(distance)[::-1]
+    return np.argsort(distance)[::-1], np.sort(distance)[::-1]
 
 
 def recommendMovies(q_vector):
     global nonwatchedList
-    distances = execute_query(q_vector)
+    distances, actualDistances = execute_query(q_vector)
 
     movieid_name_map = DataHandler.movieid_name_map
     watchedMovieNames = [movieid_name_map[movieid] for movieid in moviesWatched]
     print(watchedMovieNames)
-    return [nonwatchedList[i] for i in distances][0:5]
+    return [nonwatchedList[i] for i in distances][0:5], actualDistances[0:5]
 
 
 def newQueryFromFeedBackLDA(recommended_movies, feedback):
@@ -272,7 +272,7 @@ def newQueryFromFeedBack(recommended_movies, feedback):
     new_q = ((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
     vals = np.power(new_q, aug_semantic_matx)
 
-    return np.argsort(np.prod(vals, axis=1))[::-1]
+    return np.argsort(np.prod(vals, axis=1))[::-1], np.sort(vals)[::-1]
 
 
 def runme():
