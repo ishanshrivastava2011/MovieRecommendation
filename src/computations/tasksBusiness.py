@@ -431,6 +431,7 @@ def task3():
     DataHandler.createDictionaries1()
     movieid_name_map = DataHandler.movieid_name_map
     MoviesinLatentSpace = pd.read_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv',index_col = 0)
+    SemanticsInTagsDf = pd.read_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv', index_col = 0)
     moviesList = list(MoviesinLatentSpace.index)
     MoviesinLatentSpace_Matrix = np.matrix(MoviesinLatentSpace,dtype = np.float32)
     print("Mapped all the movies to 500 dimensional space\n")
@@ -567,7 +568,7 @@ def task3():
             while wantFeedback:
                 feedback = input("Would you like to give feedback 'Y'/'N': ")
                 if feedback == 'Y':
-                    task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies,movieidsIndices_input,movieids_input)
+                    task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies,movieidsIndices_input,movieids_input, SemanticsInTagsDf)
                     wantFeedback = True
                 elif feedback == 'N':
                     wantFeedback = False
@@ -578,7 +579,7 @@ def task3():
 
 
 
-def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies,movieidsIndices_input,movieids_input) :
+def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layerTables, nearestMovies,movieidsIndices_input,movieids_input, SemanticsInTagsDf) :
     movieid_name_map = DataHandler.movieid_name_map
     takeFeedback = True
     while takeFeedback:
@@ -637,7 +638,16 @@ def task4(moviePoint, r, movieid, LHashTables_result, MoviesinLatentSpace, layer
     print("Results based on Brute Force rNearestNeighbors and their distance scores: \n"+str(list(zip(nearestMoviesBruteForceNames1,nearestMoviesDistanceBruteForce)))+"\n")
     changeInQuery = np.array(newMoviePoint-moviePoint)
     
-    changeInQueryIndices = ["Semantic "+str(i) for i in np.argsort(changeInQuery[0])[::-1]]
+    semTagsKeys = list(SemanticsInTagsDf.columns)
+    semanticsLists = SemanticsInTagsDf.as_matrix().tolist()
+    
+    finalSemantics= []
+    for semantic in semanticsLists:
+        tempList = [(value, semTagsKeys[index]) for index, value in enumerate(semantic)]
+        finalSemantics.append(sorted(tempList, key=lambda tup:tup[1], reverse=True)[0:5])
+    
+    
+    changeInQueryIndices = ["Semantic "+str(i) + ":"+ str(finalSemantics[i]) for i in np.argsort(changeInQuery[0])[::-1]]
     changeInQuery = np.sort(changeInQuery[0])[::-1]
     changeInQuery,changeInQueryIndices = list(np.array(changeInQuery)),list(np.array(changeInQueryIndices))
     print("Change in the query: \n"+str(list(zip(changeInQueryIndices,changeInQuery)))+"\n")
@@ -800,3 +810,23 @@ def task5_3():
     test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
     print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
 
+def semantic():
+    
+    movie_tag_tf_df=pd.read_pickle(constants.DIRECTORY + "/movie_tag_df.pickle")
+    a,b,movie_semantics = decompositions.SVDDecomposition(movie_tag_tf_df, 500)
+
+    sorted_row_idx = np.argsort(movie_semantics, axis=1)[:,movie_semantics.shape[1]-5::]
+    col_idx = np.arange(movie_semantics.shape[0])[:,None]
+    score = movie_semantics[col_idx,sorted_row_idx]
+    a = list(movie_tag_tf_df)
+    rows = sorted_row_idx.shape[0]
+    cols = sorted_row_idx.shape[1]
+    for x in range(0, rows):
+        for y in range(0, cols):
+            sorted_row_idx[x,y]=a[sorted_row_idx[x,y]]
+            
+    sorted_row_idx = pd.DataFrame(data=sorted_row_idx[1:,1:],index=sorted_row_idx[1:,0],columns=sorted_row_idx[0,1:])
+    score = pd.DataFrame(data=score[1:,1:],index=score[1:,0],columns=score[0,1:])
+
+    final = pd.DataFrame(np.rec.fromarrays((sorted_row_idx.values, score.values)).tolist(),columns=sorted_row_idx.columns,index=sorted_row_idx.index)
+    

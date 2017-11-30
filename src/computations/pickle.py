@@ -43,6 +43,10 @@ def create_CP_Tensor_pickle() :
 #MDS
 def MDS() :
     movie_tag_df = DataHandler.load_movie_tag_df()
-    SVD_FOR_MDS = decompositions.SVDDecomposition((movie_tag_df), 500)[0]
+    decomp = decompositions.SVDDecomposition((movie_tag_df), 500)
+    SVD_FOR_MDS = decomp[0]
+    SemInTags = decomp[2]
     SVD_FOR_MDS = pd.DataFrame(SVD_FOR_MDS, index =movie_tag_df.index)
     SVD_FOR_MDS.to_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv')
+    SemInTagsDf = pd.DataFrame(SemInTags, columns = movie_tag_df.columns)
+    SemInTagsDf.to_csv(constants.DIRECTORY+"SemanticsInTags_SVD_MDS.csv")
