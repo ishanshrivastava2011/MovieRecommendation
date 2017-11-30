@@ -8,7 +8,7 @@ def task1_2(method):
     elif(method=="PCA"):
         taskRunner.task1_2PCA()
     elif(method=="LDA"):
-        return
+        taskRunner.task1_2LDA()
     elif(method=="CPD"):
         taskRunner.task1_2CP()
     elif(method=="PPR"):
