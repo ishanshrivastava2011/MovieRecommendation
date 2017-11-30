@@ -678,7 +678,7 @@ def task5_1():
     movieid_name_map = DataHandler.movieid_name_map
     allMovieData = DataHandler.load_movie_tag_df()
     train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
-   trainSparseMatrix = sparse.csr_matrix(train_movies_Matrix)
+    trainSparseMatrix = sparse.csr_matrix(train_movies_Matrix)
     testSparseMatrix = sparse.csr_matrix(test_movies_Matrix)
     NNForAllTest = knn.NN(trainSparseMatrix,testSparseMatrix)
     maxKNNLabels = knn.sortAllNNAndGetLabels(NNForAllTest,r,train_label)
