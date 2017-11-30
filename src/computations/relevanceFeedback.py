@@ -2,7 +2,7 @@ from data import DataHandler
 from computations import decompositions
 import time
 import itertools
-from util import constants
+from util import constants,formatter
 from operator import itemgetter
 import numpy as np
 from numba import guvectorize, float32,jit
@@ -10,6 +10,7 @@ import sklearn.metrics.pairwise as pairwise
 import pandas as pd
 from computations import personalizedpagerank as ppr
 from computations import pickle
+from computations import tasksBusiness
 
 movie_movie_similarity = None
 moviesWatched_timestamp_sorted = None
@@ -36,7 +37,6 @@ def listIndex(full_list, sub_list):
 
     return indexList,unwList
 
-
 @guvectorize([(float32[:, :], float32[:], float32[:])], '(m,n),(n)->(m)')
 def euclideanMatrixVector(matx, vec, distances):
     for i in range(matx.shape[0]):
@@ -49,7 +49,7 @@ def euclideanSimilarityMatrix(matx, distances):
             distances[i][j] = np.linalg.norm(matx[i] - matx[j])
 
 def loadCPSemantics():
-    decomposed = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(), 5)
+    decomposed = pickle.create_CP_Tensor_pickle()#decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(), 5)
     fullList = sorted(list(DataHandler.movie_actor_map.keys()))
     tagged_movies_idx = []
     setofmovies = set(moviesList)
@@ -101,33 +101,51 @@ def loadBase(userId):
     finalWeights = timestamp_weights * 0.1 + ratingWeights * 0.9
 
 
-def runAllMethods():
+def runAllMethods(userid):
     global sem_matrix_list
     global q_vectorList
 
-    functions = [loadPCASemantics, loadSVDSemantics]
+    functions = [loadPCASemantics, loadSVDSemantics, loadCPSemantics]
     allSimilarities = []
-    for func in functions:
-        similarity_semantic_matrix = func()
-        similarity_semantic_matrix = ((similarity_semantic_matrix - similarity_semantic_matrix.min(axis=0) + 0.00001) \
-                        / (similarity_semantic_matrix.max(axis=0) - similarity_semantic_matrix.min(axis=0) + 0.00001))
-
-        vector = np.take(similarity_semantic_matrix, indx, axis=0)
-        q_vector = vector.astype(np.float32)
-
-        aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
-        sem_matrix_list.append(aug_sim_matx)
-        q_vectorList.append(q_vector)
-
-        distance = []
-        for v in q_vector:
-            distance.append(euclideanMatrixVector(aug_sim_matx, v))
-
-        distance = np.array(distance)
-        distance = (distance - distance.min() + 0.00001) / ((distance.max() - distance.min() + 0.00001))
-        similarity = 1. / distance
-        similarity = similarity.T.dot(finalWeights).astype(np.float32)
-        # similarity = similarity - similarity.min() + 0.00001 / (similarity.max() - similarity.min() + 0.00001)
+    for i in range(1,6):
+        similarity=list()
+        if(i<=3):
+            similarity_semantic_matrix = functions[i-1]()
+            similarity_semantic_matrix = ((similarity_semantic_matrix - similarity_semantic_matrix.min(axis=0) + 0.00001) \
+                            / (similarity_semantic_matrix.max(axis=0) - similarity_semantic_matrix.min(axis=0) + 0.00001))
+    
+            vector = np.take(similarity_semantic_matrix, indx, axis=0)
+            q_vector = vector.astype(np.float32)
+    
+            aug_sim_matx = np.delete(similarity_semantic_matrix, indx, axis=0).astype(np.float32)
+            sem_matrix_list.append(aug_sim_matx)
+            q_vectorList.append(q_vector)
+    
+            distance = []
+            for v in q_vector:
+                distance.append(euclideanMatrixVector(aug_sim_matx, v))
+    
+            distance = np.array(distance)
+            distance = (distance - distance.min() + 0.00001) / ((distance.max() - distance.min() + 0.00001))
+            similarity = 1. / distance
+            similarity = list(similarity.T.dot(finalWeights).astype(np.float32))
+        if i==4:
+            movie_movie_similarity_subset_new = runLDADecomposition(userid)#update
+            similarity = list(movie_movie_similarity_subset_new.T.dot(finalWeights).astype(np.float32))
+        if i == 5:
+            movieRatedSeed = list(zip(moviesWatched, finalWeights))#DataHandler.userMovieOrders(userId)
+            P = DataHandler.load_movie_tag_df()#DataHandler.load_movie_tag_df()
+            moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
+            euclidean_distance = pairwise.euclidean_distances(P)
+            epsilon = np.matrix(np.zeros(euclidean_distance.shape) + 0.000001)
+            movie_movie_similarity = 1/(epsilon + euclidean_distance)
+            movie_movie_similarity = pd.DataFrame(movie_movie_similarity)
+            prData = ppr.personalizedPageRankWeighted(movie_movie_similarity, movieRatedSeed, 0.9)
+            moviesNotWATCHED = list(set(moviesList)-set(moviesWatched))
+            moviesNotWATCHED_indices = [moviesList.index(i) for i in moviesNotWATCHED]
+            similarity = list(prData.loc[moviesNotWATCHED_indices,][0])
+        similarity=[formatter.normalizer(min(similarity), max(similarity), value) for value in similarity]
+        
         allSimilarities.append(similarity)
 
     similarities = np.array(allSimilarities).mean(axis=0)
@@ -160,8 +178,8 @@ def runAllMethodrelevancefeedback(recommended_movies, feedback):
     return np.argsort(np.mean(votes, axis=0))[::-1]
 
 
-def runLDADecomposition():
-    return "LDA Similarity Matrix"
+def runLDADecomposition(userid):
+    return tasksBusiness.LDA_SIM(userid)
 
 
 def runDecomposition(func):
@@ -309,9 +327,6 @@ def newQueryFromLDERegularFeedBack(moviePoint, relevantMovieList, irrevelantMovi
     return (moviePoint + sumRelPoint - sumNonRelPoint).astype(np.float32)
 
 def task1d(userId) :
-    DataHandler.createDictionaries1()
-    DataHandler.vectors()
-    loadBase(userId);
     movieRatedSeed = list(zip(moviesWatched, finalWeights))#DataHandler.userMovieOrders(userId)
     P = DataHandler.load_movie_tag_df()#DataHandler.load_movie_tag_df()
     moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
@@ -328,4 +343,32 @@ def task1d(userId) :
     required =  sorted([(movieid_name_map[k],y) for (k,y) in rankedItems if k not in [k for k,y in movieRatedSeed]],key=lambda x: x[1], reverse=True)
     print("--------------------------------------")
     print (required[:5])
+    
+    while True:
+        feedback = input("Relevance (1/0) for each of the 5 movies: ")
+        if feedback == 'exit':
+            print("GoodBye........")
+            break
+        feedback_split = feedback.split(',')
+        feedback = np.array([int(i) for i in feedback_split])
+        
+        relevantFeedback = np.where(feedback == 1)[0]
+        a = required[:5]
+        b = [i[0] for i in a]
+        
+        final =list()
+        
+        movie_id_map = DataHandler.movie_id_map
+        relevantMovieList = [b[i] for i in relevantFeedback]
+        movieids = [movie_id_map[k] for k in relevantMovieList]
+        final = [1/len(relevantMovieList)] * len(relevantMovieList)
+        movieRelevantSeed = list(zip(movieids, final))
+        prData1 = ppr.personalizedPageRankWeighted(movie_movie_similarity, movieRelevantSeed, 0.9)
+        rankeds = sorted(list(map(lambda x:(moviesList[x[0]],x[1]),prData1.itertuples())),key=lambda x:x[1], reverse=True)
+        movieid_name_map = DataHandler.movieid_name_map
+        required1 =  sorted([(movieid_name_map[k],y) for (k,y) in rankeds],key=lambda x: x[1], reverse=True)
+        print("--------------------------------------")
+        print (required1[:5])
+        #new_query = newQueryFromFeedBack(movies, feedback)
+        #print([movieid_name_map[rf.nonwatchedList[i]] for i in new_query][0:5])
     

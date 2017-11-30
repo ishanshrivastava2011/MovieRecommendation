@@ -9,6 +9,8 @@ from computations import metrics
 from computations import decompositions
 from util import constants
 from util import formatter
+import pickle
+from computations import relevanceFeedback as rf
 
 import numpy as np
 from operator import itemgetter
@@ -58,6 +60,7 @@ actor_actorid_map = defaultdict(str)
 movie_genre_map = defaultdict(set)
 movieid_name_map = defaultdict()
 tag_timestamp_map=defaultdict()
+movie_id_map = defaultdict()
 
 user_rated_or_tagged_date_map = defaultdict(set)
 
@@ -149,6 +152,7 @@ def createDictionaries1():
         movie_year_map[row.movieid]=row.year
         year_movie_map[row.year]=row.movieid
         movieid_name_map[row.movieid]=row.moviename
+        movie_id_map[row.moviename] = row.movieid
     for row in user_ratings_df.itertuples():
         user_movie_ratings_map[row.userid].append((row.movieid, row.rating/5.0))
         movie_ratings_map[row.movieid].append(row.rating)
@@ -428,7 +432,7 @@ def docSpecificCorpus(df,actorIndex):
 
 def representDocInLDATopics(df,actorIndex,ldaModel):
     actorInLDATopics = ldaModel[docSpecificCorpus(df,actorIndex)]
-    totalTopics = 4
+    totalTopics = 50
     CurTopics = zip(*actorInLDATopics)
     CurTopics = list(CurTopics)
     for i in range(0,totalTopics):
@@ -436,39 +440,15 @@ def representDocInLDATopics(df,actorIndex,ldaModel):
                 actorInLDATopics.append(tuple((i,0)))
     return actorInLDATopics
 
-def similarActors_LDA(givenActor):
-    createDictionaries1()
-    vectors()
-    givenActor_similarity = defaultdict(float)
-    actor_weight_vector_tf_idf = actor_tagVector()
-    tagList = sorted(list(tag_movie_map.keys()))
-    actorList = sorted(list(actor_movie_rank_map.keys()))
-    df = pd.DataFrame(columns=tagList)
-    dictList = []
-    for actor in actorList:
-        actor_tag_dict = dict.fromkeys(tagList,0.0)
-        for tag,weight in actor_weight_vector_tf_idf[actor]:
-            actor_tag_dict[tag] = weight
-        dictList.append(actor_tag_dict)
-    df = df.append(dictList,ignore_index=True)
-    t = time.time()
-    ldaModel,doc_term_matrix,id_Term_map  =  decompositions.LDADecomposition(df,4,constants.actorTagsSpacePasses)
-    print('Query : ', time.time() - t)
-    for otherActor in actorList:
-        ac1 = representDocInLDATopics(df,actorList.index(givenActor),ldaModel)
-        if otherActor != givenActor:
-            ac2 = representDocInLDATopics(df,actorList.index(otherActor),ldaModel)
-            givenActor_similarity[otherActor]=(metrics.simlarity_kullback_leibler(ac1,ac2))
-    #print(sorted(givenActor_similarity.items(),key = itemgetter(1),reverse=True))
-    top10 = sorted(givenActor_similarity.items(),key = itemgetter(1),reverse=False)[0:11]
-    return top10
 
 def buildDF_TF():
-    createDictionaries1()
+    vectors()
     tagList = sorted(list(tag_movie_map.keys()))
     dfList = []
     movieList = []
-    for movie in movie_tag_map.keys():
+    all_movie_sorted = sorted(list(movie_tag_map.keys()))
+
+    for movie in all_movie_sorted:
         tagsInMovie = movie_tag_map[movie]
         tf_idf_map = dict()
         if tagsInMovie:
@@ -485,16 +465,52 @@ def buildDF_TF():
     return dfList,tagList,movieList
 
 def load_movie_tag_tf_df():
+    movie_tag_tf_df = None
     try:
-        movie_tag_tf_df=pd.read_pickle(constants.DIRECTORY + "movie_tag_tf_df.pickel")
+        movie_tag_tf_df=pd.read_pickle(constants.DIRECTORY + "movie_tag_tf_df.pickle")
     except (OSError, IOError) as e:
+#        print("in load_movie_tag_tf_df")
         dfList,tagList,movieList = buildDF_TF()
         movie_tag_tf_df = pd.DataFrame(dfList, columns=tagList, index=movieList)
-        movie_tag_tf_df.to_pickle(constants.DIRECTORY + "movie_tag_tf_df.pickel")
+        movie_tag_tf_df.to_pickle(constants.DIRECTORY + "movie_tag_tf_df.pickle")
     return movie_tag_tf_df
 
+def buildDF_LDASpace():
+    df = load_movie_tag_tf_df()
+    ldaModel,doc_term_matrix,id_Term_map = None,None,None
+    try:
+        ldaModel = pickle.load(open(constants.DIRECTORY + "ldaModel.pickle", "rb"))
+        doc_term_matrix,id_Term_map = pickle.load(open(constants.DIRECTORY + "doc_term_matrix.pickle", "rb")),pickle.load(open(constants.DIRECTORY + "id_Term_map.pickle", "rb"))
+    except (OSError, IOError) as e:
+#        print("in load_movie_LDASpace_df")
+        ldaModel,doc_term_matrix,id_Term_map  =  decompositions.LDADecomposition(df,50,constants.genreTagsSpacePasses)
+        pickle.dump(ldaModel, open(constants.DIRECTORY + "ldaModel.pickle", "wb"))
+        pickle.dump(doc_term_matrix, open(constants.DIRECTORY + "doc_term_matrix.pickle", "wb"))
+        pickle.dump(id_Term_map, open(constants.DIRECTORY + "id_Term_map.pickle", "wb"))
+    moviel = list(df.index)
+    dfList = list()
+    for mid in moviel:
+        latentSpace = [0]*50
+        for tup in ldaModel[docSpecificCorpus(df,mid)]:
+            index = tup[0]
+            prob = tup[1]
+            latentSpace[index] = prob
+        dfList.append(latentSpace)
+    return dfList,moviel
+
+def load_movie_LDASpace_df():
+    movie_LDASpace_df = None
+    try:
+        movie_LDASpace_df = pd.read_pickle(constants.DIRECTORY +"movie_LDASpace_df.pickle")
+    except (OSError, IOError) as e:
+#        print("in load_movie_LDASpace_df")
+        dfList,moviel = buildDF_LDASpace()
+        movie_LDASpace_df = pd.DataFrame(dfList, index=moviel)
+        movie_LDASpace_df.to_pickle(constants.DIRECTORY + "movie_LDASpace_df.pickle")
+    return movie_LDASpace_df
+
 def buildDF():
-    movieCount = movie_tag_map.keys().__len__()
+    movieCount = movie_tag_map.keys()._len_()
     createDictionaries1()
 
     tagList = sorted(list(tag_movie_map.keys()))
@@ -519,7 +535,6 @@ def buildDF():
             dfList.append(tf_idf_map)
     return dfList,tagList,movieList
 
-
 def load_movie_tag_df():
     movie_tag = None
     try:
@@ -529,19 +544,23 @@ def load_movie_tag_df():
         movie_tag = pd.DataFrame(dfList, columns=tagList, index=movieList)
         movie_tag.to_pickle(constants.DIRECTORY + "movie_tag_df.pickle")
     return movie_tag
-    
-def movie_movie_Similarity(movie_tag_df):
-    movies = movie_tag_df.index
-    dfList = []
-    for movie1 in movies:
-        movieMap = dict.fromkeys(movies, 0.0)
-        for movie2 in movies:
-            vec1 = dict(zip(movie_tag_df.loc[movie1].index,movie_tag_df.loc[movie1]))
-            vec2 = dict(zip(movie_tag_df.loc[movie2].index,movie_tag_df.loc[movie2]))
-            movieMap[movie2] = metrics.euclideanDistance(vec1, vec2)
-        dfList.append(movieMap)
-    return pd.DataFrame(dfList, columns=movies, index=movies)
 
+def convertToBinary(column):
+    threshold = column.mean()
+    column=column>threshold 
+    return column
+
+
+def buildDF_movie_tag_binary():
+    try:
+        movie_tag = pd.read_pickle(constants.DIRECTORY +"movie_tag_binary_df.pickle")
+    except (OSError, IOError) as e:
+        movie_tag=load_movie_tag_df()
+        movie_tag_matrix = np.matrix(movie_tag)
+        movie_tag_binary_matrix=np.apply_along_axis(convertToBinary,0,movie_tag_matrix ).astype(int)
+        movie_tag_binary_df = pd.DataFrame(movie_tag_binary_matrix,index=list(movie_tag.index),columns=list(movie_tag.columns))
+        movie_tag.to_pickle(constants.DIRECTORY + "movie_tag_binary_df.pickle")
+    return movie_tag_binary_df
 def movie_movie_Similarity1(movie_tag_df):
     movies = movie_tag_df.index
     dfList = []
@@ -751,3 +770,6 @@ def userMovieOrders(user_id):
                 sum += mean
 
     return [(k,v/sum) for k,v in movieOrders.items()]
+
+def load_dataForClassifiers():
+    return rf.loadPCASemantics()

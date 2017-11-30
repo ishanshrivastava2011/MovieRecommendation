@@ -4,7 +4,7 @@ import numpy as np
 
 class BinarySVM:
 
-    def __init__(self, session=tf.Session(), func='linear', lr=0.9, iterations=1000, scope='scope'):
+    def __init__(self, session=tf.Session(), func='linear', lr=0.9, iterations=1, scope='scope'):
         self.funcs = {'linear' : self.linearKernel}
         self.func = func
         self.session = session

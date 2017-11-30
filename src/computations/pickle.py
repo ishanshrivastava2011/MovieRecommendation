@@ -1,6 +1,8 @@
 from util import constants
 from computations import decompositions
 import pickle
+from data import DataHandler
+import pandas as pd
 
 #PCA
 #PCA = decompositions.PCADimensionReduction((movie_tag_df), 455)
@@ -23,12 +25,24 @@ def create_PCA_pickle(movie_tag_df) :
     try:
         PCA_local = pickle.load(open(constants.DIRECTORY + "PCA_decomposition.pickle", "rb"))
     except (OSError, IOError) as e:
-        PCA_local = decompositions.SVDDecomposition((movie_tag_df), 1160)[0]
+        PCA_local = decompositions.PCADimensionReduction((movie_tag_df), 1160)
         pickle.dump(PCA_local, open(constants.DIRECTORY + "PCA_decomposition.pickle", "wb"))  
     
     return PCA_local
 
+def create_CP_Tensor_pickle() :
+    CP_Tensor = None
+    try:
+        CP_Tensor = pickle.load(open(constants.DIRECTORY + "CP_Decomposition_5_dim.pickle", "rb")) 
+    except (OSError, IOError) as e:
+        CP_Tensor = decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(), 5)
+        pickle.dump(CP_Tensor, open(constants.DIRECTORY + "CP_Decomposition_5_dim.pickle", "wb"))  
+    
+    return CP_Tensor
+
 #MDS
-#SVD_FOR_MDS = decompositions.SVDDecomposition((movie_tag_df), 500)[0]
-#SVD_FOR_MDS = pd.DataFrame(SVD, index =movie_tag_df.index)
-#SVD_FOR_MDS.to_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv')
+def MDS() :
+    movie_tag_df = DataHandler.load_movie_tag_df()
+    SVD_FOR_MDS = decompositions.SVDDecomposition((movie_tag_df), 500)[0]
+    SVD_FOR_MDS = pd.DataFrame(SVD_FOR_MDS, index =movie_tag_df.index)
+    SVD_FOR_MDS.to_csv(constants.DIRECTORY+'MoviesinLatentSpace_SVD_MDS.csv')

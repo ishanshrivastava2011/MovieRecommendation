@@ -14,10 +14,12 @@ from computations import LSH as lsh
 from computations import rNearestNeighborSimilarMovies
 from computations import relevanceFeedback
 from scipy import sparse
-from computations import knn
-DataHandler.vectors()
+from Classifiers import knn
+from Classifiers import DecisionTree as DT
+from Classifiers import TSVM as binarySVM
+import pickle
+#DataHandler.vectors()
 global wt
-import sklearn.metrics.pairwise as pairwise
 
 
 def genre_spaceTags_LDA(genre):
@@ -421,30 +423,8 @@ def task1c(userId):
 def task3_MDS_SVD(iterations) :
     P = DataHandler.load_movie_tag_df() 
     
-    X, Sigma, VT = decompositions.SVDDecomposition(P, 500);
+    X, Sigma, VT = decompositions.SVDDecomposition(P, 500)
     
-    dissimilarities = pairwise.euclidean_distances(P)
-   # movieList = dissimilarities.index
-    #dissimilarities=np.matrix(dissimilarities)
-    
-     dissimilarities = pairwise.euclidean_distances(P)
-    
-    
-    
-    #A = pd.DataFrame(U, index = P.index)
-    
-    #A.to_csv('foo.csv')
-    
-    #dissimilarities = np.matrix(U) * np.matrix(U.T)
-    #movieList = dissimilarities.index
-    #dissimilarities=np.matrix(dissimilarities)
-    
-    
-    dis = pairwise.euclidean_distances(U)
-        
-        # Compute stress
-    stress = np.square((dis.ravel() - dissimilarities.ravel())).sum() / 2
-        
         
 def task3():
     #3.1
@@ -677,7 +657,7 @@ def createTrainTestData(allMovieData):
     test_movies_Matrix = allMovies_Matrix[test_movieidsIndices]
     
     train_label = list(labelledMovies.label)
-    return train_movies_Matrix,train_label,test_movies_Matrix,test_movieids
+    return train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids
 
 def task5_1():
     classify = True
@@ -697,11 +677,126 @@ def task5_1():
     DataHandler.createDictionaries1()
     movieid_name_map = DataHandler.movieid_name_map
     allMovieData = DataHandler.load_movie_tag_df()
-    train_movies_Matrix,train_label,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
-    trainSparseMatrix = sparse.csr_matrix(train_movies_Matrix)
+    train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
+   trainSparseMatrix = sparse.csr_matrix(train_movies_Matrix)
     testSparseMatrix = sparse.csr_matrix(test_movies_Matrix)
     NNForAllTest = knn.NN(trainSparseMatrix,testSparseMatrix)
     maxKNNLabels = knn.sortAllNNAndGetLabels(NNForAllTest,r,train_label)
     predictions = [max(set(NNLabels[0:r]), key=NNLabels[0:r].count) for NNLabels in maxKNNLabels]
     test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
     print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
+
+def LDA_SIM(userid):
+    #DataHandler.vectors()   #get user's movies
+    
+    #DataHandler.createDictionaries1()
+    
+    movie_date_List = DataHandler.user_rated_or_tagged_date_map.get(userid)  
+    movieList = sorted([i[0] for i in movie_date_List])
+    movie_tag_df = DataHandler.load_movie_tag_tf_df()
+    try:
+        ldaModel = pickle.load(open(constants.DIRECTORY + "ldaModel.pickle", "rb"))
+        doc_term_matrix,id_Term_map = pickle.load(open(constants.DIRECTORY + "doc_term_matrix.pickle", "rb")),pickle.load(open(constants.DIRECTORY + "id_Term_map.pickle", "rb"))
+    except (OSError, IOError) as e:
+        ldaModel,doc_term_matrix,id_Term_map  =  decompositions.LDADecomposition(movie_tag_df,50,constants.genreTagsSpacePasses)
+        pickle.dump(ldaModel, open(constants.DIRECTORY + "ldaModel.pickle", "wb"))
+        pickle.dump(doc_term_matrix, open(constants.DIRECTORY + "doc_term_matrix.pickle", "wb"))
+        pickle.dump(id_Term_map, open(constants.DIRECTORY + "id_Term_map.pickle", "wb"))
+    
+    all_movie_list = sorted(list(movie_tag_df.index.values))
+    all_movie_butWatched_list = sorted(list(set(all_movie_list)-set(movieList)))    
+    
+    givenMovie_similarity_DFlist = list()
+    for movie in movieList:
+        m1 = DataHandler.representDocInLDATopics(movie_tag_df,movie,ldaModel)
+        m1_Similarity_list = dict()
+        for otherMovies in all_movie_butWatched_list:
+            m2 = DataHandler.representDocInLDATopics(movie_tag_df,otherMovies,ldaModel)
+            m1_Similarity_list[otherMovies]=(1/(metrics.simlarity_kullback_leibler(m1,m2)+0.00000001))
+        givenMovie_similarity_DFlist.append(m1_Similarity_list)      
+    givenMovie_similarity = pd.DataFrame(givenMovie_similarity_DFlist,index=movieList,columns=all_movie_butWatched_list)
+        
+#    movie_year_maps = DataHandler.movie_year_map
+#    
+#    for movie,val in movieList:
+#        for otherMovies in all_movie_list:
+#            if ((otherMovies != movie) and movie in all_movie_list):
+#                givenMovie_similarity.set_value(movie,otherMovies,givenMovie_similarity.at[movie,otherMovies]*(movie_year_maps.get(otherMovies)/movie_year_maps.get(movie)))
+#                
+        
+    
+    return givenMovie_similarity#getWeightedSimilarityOrder1(givenMovie_similarity,userid,movie_tag_df,movieList)
+
+
+
+
+def getWeightedSimilarityOrder1(givenMovie_similarity,userid,movie_tag_df,moviesWatched):
+    global wt
+    #movie_tag_df = DataHandler.load_movie_tag_df()
+
+    #moviesWatched = DataHandler.user_rated_or_tagged_date_map.get(userid)
+    moviesList = sorted(list(movie_tag_df.index.values))
+    moviesWatched_timestamp = list(moviesWatched)
+    moviesWatched_timestamp = sorted(moviesWatched_timestamp,key=itemgetter(1))
+    moviesWatched_timestamp_sorted = list(list(zip(*moviesWatched_timestamp ))[0])
+    
+    movie_movie_similarity_subset = givenMovie_similarity.loc[moviesWatched_timestamp_sorted][list(set(moviesList)-set(moviesWatched))]
+    movie_movie_similarity_subset_new = movie_movie_similarity_subset.loc[~(movie_movie_similarity_subset==0).all(axis=1)]
+    
+    return movie_movie_similarity_subset_new
+
+
+'''
+    wt = list(range(1,len(movie_movie_similarity_subset)+1))
+    movie_movie_similarity_subset=movie_movie_similarity_subset.fillna(0)
+    weightedSimilarities = movie_movie_similarity_subset.apply(calcWeightedSimilarity,0)
+    #result = (weightedSimilarities.sort_values(ascending=False).index[0:5])
+    a = (weightedSimilarities.sort_values(ascending=False).index[0:5], weightedSimilarities.sort_values(ascending=False)[0:5])
+    print("Top 5 recommended Movies for the user are:")
+    for i in range(0,len(a[0])):
+        print(DataHandler.movieid_name_map[a[0][i]]+': '+ str(list(a[1])[i]))
+    print("                       ")
+    print("User's watched Movies are:")
+    for val,v in moviesWatched:
+        print(DataHandler.movieid_name_map[val])
+'''
+
+
+def task5_2():
+    DataHandler.createDictionaries1()
+    movieid_name_map = DataHandler.movieid_name_map
+    movie_tag = DataHandler.load_movie_tag_df()
+    allMovieData = pd.DataFrame(DataHandler.load_dataForClassifiers(),index=list(movie_tag.index))
+    train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
+    
+    uniqueLabels = list(set(train_label))
+    for i in range(len(uniqueLabels)):
+        labeli_index=[j for  j,x in enumerate(train_label) if x == uniqueLabels[i]]
+        for k in labeli_index:
+            train_label[k]=i
+#    train_movies_Matrix=np.insert(train_movies_Matrix,train_movies_Matrix.shape[1]-1,train_label)
+    train_movies_Matrix_DF=pd.DataFrame(train_movies_Matrix,index=train_movieids)
+    train_movies_Matrix_DF['label'] = pd.Series(train_label, index=train_movieids)
+    dtModel = DT.DecisionTree()
+    dtModel.fit(train_movies_Matrix_DF[list(range(train_movies_Matrix.shape[1]))],train_movies_Matrix_DF['label'])
+    predictions=dtModel.predict(pd.DataFrame(test_movies_Matrix,index=test_movieids))
+    test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
+    print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
+
+def task5_3():
+    DataHandler.createDictionaries1()
+    movieid_name_map = DataHandler.movieid_name_map
+    movie_tag = DataHandler.load_movie_tag_df()
+    allMovieData = pd.DataFrame(DataHandler.load_dataForClassifiers(),index=list(movie_tag.index))
+    train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
+    uniqueLabels = list(set(train_label))
+    for i in range(len(uniqueLabels)):
+        labeli_index=[j for  j,x in enumerate(train_label) if x == uniqueLabels[i]]
+        for k in labeli_index:
+            train_label[k]=i
+    svmModel = binarySVM.BinarySVM()
+    svmModel.fit(train_movies_Matrix,train_label)
+    predictions=svmModel.predict(test_movies_Matrix)
+    test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
+    print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
+
