@@ -252,9 +252,22 @@ def newQueryFromFeedBack(recommended_movies, feedback):
     relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 1], axis=0)
     non_relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 0], axis=0)
     # n_corpus = aug_sim_matx.sum(axis=0)
+    
+    R = 0
+    NR = 0
+    try:
+        R=len(relevant)
+    except:
+        R=0
+    
+    try:
+        NR = len(non_relevant)
+    except:
+        NR = 0
+    
     n_N = non_relevant/5
-    p_vector = (relevant)*(1.0/(len(relevant) + 1.0))
-    u_vector = (non_relevant)*(1.0 /(len(non_relevant)+1.0))
+    p_vector = (relevant)*(1.0/(R + 1.0))
+    u_vector = (non_relevant)*(1.0 /(NR+1.0))
 
     new_q = ((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
     vals = np.power(new_q, aug_semantic_matx)
