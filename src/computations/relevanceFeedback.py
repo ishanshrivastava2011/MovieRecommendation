@@ -127,7 +127,7 @@ def runAllMethods(userid):
     
             distance = np.array(distance)
             distance = (distance - distance.min() + 0.00001) / ((distance.max() - distance.min() + 0.00001))
-            similarity = 1. / distance
+            similarity = 1. / distance + 0.00001
             similarity = list(similarity.T.dot(finalWeights).astype(np.float32))
         if i==4:
             movie_movie_similarity_subset_new = runLDADecomposition(userid)#update
@@ -150,7 +150,7 @@ def runAllMethods(userid):
 
     similarities = np.array(allSimilarities).mean(axis=0)
 
-    return np.argsort(similarities)[::-1]
+    return np.argsort(similarities)[::-1], np.sort(similarities)[::-1]
 
 def runAllMethodrelevancefeedback(recommended_movies, feedback):
     global nonwatchedList
@@ -207,7 +207,8 @@ def execute_query(q_vector):
     distance = []
     for vector in q_vector:
         distance.append(euclideanMatrixVector(aug_semantic_matx, vector))
-    distance = 1./np.array(distance)
+    distance = np.array(distance) + 0.000001    
+    distance = 1./distance
     distance = distance.T.dot(finalWeights).astype(np.float32)
 
     print(' query ---- ' + str(time.time() - times) + ' ---- query')
@@ -258,21 +259,22 @@ def newQueryFromFeedBack(recommended_movies, feedback):
     try:
         R=len(relevant)
     except:
-        R=0
+        R=0+0.000001
     
     try:
         NR = len(non_relevant)
     except:
-        NR = 0
+        NR = 0+0.00001
     
     n_N = non_relevant/5
-    p_vector = (relevant)*(1.0/(R + 1.0))
-    u_vector = (non_relevant)*(1.0 /(NR+1.0))
+    p_vector = (relevant+0.000001)*(1.0/(R + 1.0))
+    u_vector = (non_relevant+0.000001)*(1.0 /(NR+1.0))
 
     new_q = ((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
     vals = np.power(new_q, aug_semantic_matx)
+    products = np.prod(vals, axis=1)
 
-    return np.argsort(np.prod(vals, axis=1))[::-1], np.sort(vals)[::-1]
+    return np.argsort(products)[::-1], np.sort(products)[::-1]
 
 
 def runme():

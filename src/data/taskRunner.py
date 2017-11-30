@@ -3,6 +3,7 @@ from data import DataHandler
 import time
 from computations import tasksBusiness as tb
 import numpy as np
+from operator import itemgetter
 
 def task1_2CombinedPredictor(userid):
     movieid_name_map = DataHandler.movieid_name_map
@@ -12,20 +13,22 @@ def task1_2CombinedPredictor(userid):
     DataHandler.vectors()
     DataHandler.createDictionaries1()
     rf.loadBase(userId)
-    similarities = rf.runAllMethods(userid)
+    similarities, sortedSimilarity = rf.runAllMethods(userid)
     movies = [rf.nonwatchedList[i] for i in similarities][0:5]
     moviesWatched_timestamp = list(DataHandler.user_rated_or_tagged_date_map.get(userId))
     
     moviesWatched_timestamp = sorted(moviesWatched_timestamp,key=itemgetter(1))
     moviesWatched_timestamp_sorted = list(list(zip(*moviesWatched_timestamp ))[0])
     watchedMovieNames = [movieid_name_map[movieid] for movieid in moviesWatched_timestamp_sorted]
+    print('-------------------------------------')
     print('Movies Watched by the user in order: '+ str(watchedMovieNames))
     named_movies = [movieid_name_map[i] for i in movies]
-    print('Top 5 movies : ' + str(named_movies))
+    print('Top 5 movies : ' + str(list(zip(named_movies, sortedSimilarity))))
+    print('-------------------------------------')
     while True:
         feedback = input("Relevance (1/0) for each of the 5 movies: ")
         if feedback == 'exit':
-            print("GoodBye........")
+            print("Exit........")
             break
         feedback = [int(i) for i in feedback.split(',')]
         new_query = rf.runAllMethodrelevancefeedback(movies, feedback)
@@ -45,21 +48,21 @@ def task1_2Decompostions(func, userid):
     new_query = rf.q_vector
     movies, distances = rf.recommendMovies(new_query)
     named_movies = [movieid_name_map[i] for i in movies]
-    print('Top 5 movies : ' + str(named_movies))
-    for i in range(0, len(named_movies)):
-        print(named_movies[i] + str(distances[i]))
+    print('---------------------')
+    print('Top 5 movies : ')
+    print (str(list(zip (named_movies,distances))))
+    #for i in range(0, len(named_movies)):
+     #   print(named_movies[i] + ", " + str(distances[i]))
     print("---------------------")
     while True:
         feedback = input("Relevance (1/0) for each of the 5 movies: ")
         if feedback == 'exit':
-            print("GoodBye........")
+            print("Exit........")
             break
         feedback = [int(i) for i in feedback.split(',')]
         new_query, weights = rf.newQueryFromFeedBack(movies, feedback)
-        movieNames = [movieid_name_map[rf.nonwatchedList[i]] for i in new_query][0:5]
-        for i in range(0, len(movieNames)):
-            print(movieNames[i] + str(weights[i]))
         # print(str(new_query) + "\n")
+        print([movieid_name_map[rf.nonwatchedList[i]] for i in new_query][0:5])
 
 def task1_2PCA():
     userid = input("UserID : ")
