@@ -351,7 +351,9 @@ def newQueryFromLDERegularFeedBack(moviePoint, relevantMovieList, irrevelantMovi
     return (moviePoint + sumRelPoint - sumNonRelPoint).astype(np.float32)
 
 def task1d(userId) :
-    movieRatedSeed = list(zip(moviesWatched, finalWeights))#DataHandler.userMovieOrders(userId)
+    sum = np.sum(finalWeights)
+    finalProb = finalWeights/sum
+    movieRatedSeed = list(zip(moviesWatched, finalProb))#DataHandler.userMovieOrders(userId)
     P = DataHandler.load_movie_tag_df()#DataHandler.load_movie_tag_df()
     moviesList = sorted(list(DataHandler.movie_actor_rank_map.keys()))
     euclidean_distance = pairwise.euclidean_distances(P)
