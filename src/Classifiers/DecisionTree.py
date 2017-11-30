@@ -6,7 +6,7 @@ import math
 class DecisionTree:
     def __init__(self):
         self.tree = Tree
-        self.minLeaf = 2.0
+        self.minLeaf = 20.0
         self.globalCount = 0
         self.globalData = dict()
 
@@ -26,7 +26,7 @@ class DecisionTree:
         e_target = 0
         contextLen = len(contextPos)
         for data in target.items():
-            p = len(set.intersection(contextPos, data[1])) / contextLen
+            p = len(set.intersection(set(contextPos), set(data[1]))) / contextLen
             if p > 0:
                 e_target -= p * math.log2(p)
 
@@ -49,22 +49,34 @@ class DecisionTree:
                 rigtPos = set(currentSet)
                 leftPos = set()
                 maxSplitList = []
-                for distinctValue in distinctValues:
-                    leftPos.update(dataSet[attribute][distinctValue])
-                    rigtPos = set(x for x in rigtPos if x not in dataSet[attribute][distinctValue])
+                if len(distinctValues) == 2:
+                    leftPos_C = dataSet[attribute][distinctValues[0]]
+                    rigtPos_C = dataSet[attribute][distinctValues[1]]
                     # if rigtPos.__len__() == 0:
                     #     break
-                    P_left = len(leftPos) / len(currentSet)
-                    E_left = self.__targetEntropy(leftPos)
-                    P_right = len(rigtPos) / len(currentSet)
-                    E_right = self.__targetEntropy(rigtPos)
+                    P_left = len(leftPos_C) / len(currentSet)
+                    E_left = self.__targetEntropy(leftPos_C)
+                    P_right = len(rigtPos_C) / len(currentSet)
+                    E_right = self.__targetEntropy(rigtPos_C)
                     gain = nodeEntropy - P_left * E_left - P_right * E_right
-                    maxSplitList.append((distinctValue, gain))
-                try:
-                    maxGain = max(maxSplitList, key=lambda x: x[1])
-                except:
-                    print()
-                entropyList.append((attribute, maxGain))
+                    entropyList.append((0,(attribute, gain)))
+                else:
+                    for distinctValue in distinctValues:
+                        leftPos.update(dataSet[attribute][distinctValue])
+                        rigtPos = set(x for x in rigtPos if x not in dataSet[attribute][distinctValue])
+                        # if rigtPos.__len__() == 0:
+                        #     break
+                        P_left = len(leftPos) / len(currentSet)
+                        E_left = self.__targetEntropy(leftPos)
+                        P_right = len(rigtPos) / len(currentSet)
+                        E_right = self.__targetEntropy(rigtPos)
+                        gain = nodeEntropy - P_left * E_left - P_right * E_right
+                        maxSplitList.append((distinctValue, gain))
+                    try:
+                        maxGain = max(maxSplitList, key=lambda x: x[1])
+                    except:
+                        maxGain = 0
+                    entropyList.append((attribute, maxGain))
         return max(entropyList, key=lambda x: x[1][1])
 
     def __splitData(self, splitAttributeTuple, oldDataSet):

@@ -4,6 +4,7 @@ import time
 import itertools
 from util import constants,formatter
 from operator import itemgetter
+from computations import pickle
 import numpy as np
 from numba import guvectorize, float32,jit
 import sklearn.metrics.pairwise as pairwise
@@ -59,6 +60,12 @@ def loadCPSemantics():
 
     temp = np.array(decomposed[1])
     return np.take(temp, tagged_movies_idx, axis=0)
+
+def loadCPAllSemantics():
+    return pickle.create_CP_Tensor_pickle()#decompositions.CPDecomposition(DataHandler.getTensor_ActorMovieGenre(), 5)
+
+
+
 
 def loadPCASemantics():
     movie_tag_df = DataHandler.load_movie_tag_df()

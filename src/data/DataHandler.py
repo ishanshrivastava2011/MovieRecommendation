@@ -765,4 +765,20 @@ def userMovieOrders(user_id):
     return [(k,v/sum) for k,v in movieOrders.items()]
 
 def load_dataForClassifiers():
-    return rf.loadPCASemantics()
+    return rf.loadCPAllSemantics()
+
+def moviemaker(columns):
+    vectors()
+    createDictionaries1()
+    movie_tags = [len(x[1]) for x in list(sorted(movie_tag_map.items(), key=lambda x: x[0]))]
+    movie_actors = [len(x[1]) for x in list(sorted(movie_actor_map.items(), key=lambda x: x[0]))]
+    movie_ratings = [round(np.mean(x[1])*100)/100 for x in list(sorted(movie_ratings_map.items(), key=lambda x: x[0]))]
+    genres = list(genre_movie_map.keys())
+    genre_and_other_feature = []
+    genre_movies = [set(x[1]) for x in list(sorted(movie_genre_map.items(), key=lambda x: x[0]))]
+    for genre in genres:
+        genre_and_other_feature.append([1 if genre in x else 0 for x in genre_movies])
+    genre_and_other_feature.append(movie_tags)
+    genre_and_other_feature.append(movie_actors)
+    genre_and_other_feature.append(movie_ratings)
+    return pd.DataFrame(genre_and_other_feature, columns=columns).T

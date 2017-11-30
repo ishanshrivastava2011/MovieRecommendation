@@ -774,10 +774,13 @@ def getWeightedSimilarityOrder1(givenMovie_similarity,userid,movie_tag_df,movies
 
 
 def task5_2():
+    DataHandler.vectors()
     DataHandler.createDictionaries1()
     movieid_name_map = DataHandler.movieid_name_map
-    movie_tag = DataHandler.load_movie_tag_df()
-    allMovieData = pd.DataFrame(DataHandler.load_dataForClassifiers(),index=list(movie_tag.index))
+    movie_tag = pd.read_pickle(constants.DIRECTORY +"movie_tag_df.pickle")
+    # classifier_df = DataHandler.load_dataForClassifiers()
+    # allMovieData = pd.DataFrame(classifier_df[1], index=list(movie_tag.index))
+    allMovieData = pickle.load(open(constants.DIRECTORY + "movie_feature_df2", "rb"))#DataHandler.moviemaker(list(movie_tag.index))
     train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
     
     uniqueLabels = list(set(train_label))
@@ -786,19 +789,21 @@ def task5_2():
         for k in labeli_index:
             train_label[k]=i
 #    train_movies_Matrix=np.insert(train_movies_Matrix,train_movies_Matrix.shape[1]-1,train_label)
-    train_movies_Matrix_DF=pd.DataFrame(train_movies_Matrix,index=train_movieids)
-    train_movies_Matrix_DF['label'] = pd.Series(train_label, index=train_movieids)
+    train_movies_Matrix_DF=pd.DataFrame(train_movies_Matrix)
+    train_movies_Matrix_DF['label'] = pd.Series(train_label)
     dtModel = DT.DecisionTree()
     dtModel.fit(train_movies_Matrix_DF[list(range(train_movies_Matrix.shape[1]))],train_movies_Matrix_DF['label'])
-    predictions=dtModel.predict(pd.DataFrame(test_movies_Matrix,index=test_movieids))
+    predictions=[uniqueLabels[i] for i in dtModel.predict(pd.DataFrame(test_movies_Matrix))]
     test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
-    print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
+    print("Results for Decision Tree classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
 
 def task5_3():
     DataHandler.createDictionaries1()
     movieid_name_map = DataHandler.movieid_name_map
     movie_tag = DataHandler.load_movie_tag_df()
-    allMovieData = pd.DataFrame(DataHandler.load_dataForClassifiers(),index=list(movie_tag.index))
+
+    # allMovieData = pd.DataFrame(DataHandler.load_dataForClassifiers(),index=list(movie_tag.index))
+    allMovieData = pickle.load(open(constants.DIRECTORY + "movie_feature_df2", "rb"))
     train_movies_Matrix,train_label,train_movieids,test_movies_Matrix,test_movieids = createTrainTestData(allMovieData)
     uniqueLabels = list(set(train_label))
     for i in range(len(uniqueLabels)):
@@ -807,27 +812,7 @@ def task5_3():
             train_label[k]=i
     svmModel = binarySVM.BinarySVM()
     svmModel.fit(train_movies_Matrix,train_label)
-    predictions=svmModel.predict(test_movies_Matrix)
+    predictions=[uniqueLabels[int(np.asscalar(i))] for i in svmModel.predict(test_movies_Matrix)]
     test_movieids_names = [movieid_name_map[mid] for mid in test_movieids]
-    print("Results for rNearestNeighbors classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
+    print("Results for SVM classifier as (Movie Name, Label): \n"+str(list(zip(test_movieids_names,predictions)))+"\n")
 
-def semantic():
-    
-    movie_tag_tf_df=pd.read_pickle(constants.DIRECTORY + "/movie_tag_df.pickle")
-    a,b,movie_semantics = decompositions.SVDDecomposition(movie_tag_tf_df, 500)
-
-    sorted_row_idx = np.argsort(movie_semantics, axis=1)[:,movie_semantics.shape[1]-5::]
-    col_idx = np.arange(movie_semantics.shape[0])[:,None]
-    score = movie_semantics[col_idx,sorted_row_idx]
-    a = list(movie_tag_tf_df)
-    rows = sorted_row_idx.shape[0]
-    cols = sorted_row_idx.shape[1]
-    for x in range(0, rows):
-        for y in range(0, cols):
-            sorted_row_idx[x,y]=a[sorted_row_idx[x,y]]
-            
-    sorted_row_idx = pd.DataFrame(data=sorted_row_idx[1:,1:],index=sorted_row_idx[1:,0],columns=sorted_row_idx[0,1:])
-    score = pd.DataFrame(data=score[1:,1:],index=score[1:,0],columns=score[0,1:])
-
-    final = pd.DataFrame(np.rec.fromarrays((sorted_row_idx.values, score.values)).tolist(),columns=sorted_row_idx.columns,index=sorted_row_idx.index)
-    
