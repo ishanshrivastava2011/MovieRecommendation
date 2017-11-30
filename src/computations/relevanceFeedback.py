@@ -225,23 +225,25 @@ def recommendMovies(q_vector):
     return [nonwatchedList[i] for i in distances][0:5], actualDistances[0:5]
 
 
-def newQueryFromFeedBackLDA(recommended_movies, feedback):
+def newQueryFromFeedBackLDA(recommended_movies, feedback,lda_sem_matx):
     global nonwatchedList
-    global lda_sem_matx
+    
 
-    recommended_idx = [lda_sem_matx[nonwatchedList.index(i)] for i in recommended_movies]
+    recommended_idx = [(lda_sem_matx[nonwatchedList.index(i)]) for i in recommended_movies]
 
-    relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 1], axis=0)
-    non_relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if feedback[i] == 0], axis=0)
+
+    relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if int(feedback[i]) == 1], axis=0)
+    non_relevant = np.sum([recommended_idx[i] for i in range(len(recommended_idx)) if int(feedback[i]) == 0], axis=0)
     # n_corpus = aug_sim_matx.sum(axis=0)
     n_N = non_relevant/5
     p_vector = (relevant)*(1.0/(len(relevant) + 1.0))
     u_vector = (non_relevant)*(1.0 /(len(non_relevant)+1.0))
 
-    new_q = ((p_vector*(1 - u_vector))/(u_vector*(1 - p_vector)))
+    new_q = ((p_vector*(1 - u_vector))/1+(u_vector*(1 - p_vector)))
     vals = np.power(new_q, lda_sem_matx)
-
-    return np.argsort(np.prod(vals, axis=1))[::-1]
+    #vals[vals <0.0011 ] = 0.5
+    #return np.argsort(np.max(vals, axis=1))[::-1]
+    return np.argsort(vals[0])[::-1]
 
 
 def newQueryFromFeedBack(recommended_movies, feedback):

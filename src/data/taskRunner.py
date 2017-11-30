@@ -95,13 +95,14 @@ def task1_2PageRank():
 def task3() :
     tb.task3();
 
-def task1_2LDA(userid):
+def task1_2LDA():
+    userid = input("UserID : ")
     movieid_name_map = DataHandler.movieid_name_map
     enter_userid = userid  # input("UserID : ")
-    userId = int(enter_userid)
+    userid = int(enter_userid)
     DataHandler.vectors()
     DataHandler.createDictionaries1()
-    rf.loadBase(userId)
+    rf.loadBase(userid)
     finalWeights = rf.finalWeights
     
     
@@ -132,33 +133,20 @@ def task1_2LDA(userid):
 def LDAFeedback(movies): 
     takeFeedback = True
     r = len(movies)
-    while takeFeedback:
-        feedback = input("Relevance (1/0) for each of the "+ str(r) +" movies: ")
-        feedback_split = feedback.split(',')
-        if len(feedback_split) != len(movies):
-            print("Invalid Feedback string. Please give feedback for each of the movies.\n")
-            takeFeedback = True
-            continue
-        elif any(isinstance(x, int) for x in feedback_split):
-            print("Invalid Feedback string.\n")
-            takeFeedback = True
-            continue
-        else:
-            feedback = np.array([int(i) for i in feedback_split])
-            if not ((feedback<= 1 ).sum() == feedback.size):
-                print("Invalid Feedback string.\n")
-                takeFeedback = True
-                continue
-            elif not ((feedback>= 0 ).sum() == feedback.size):
-                print("Invalid Feedback string.\n")
-                takeFeedback = True
-                continue
-            else:
-                takeFeedback = False
+    
+    feedback = input("Relevance (1/0) for each of the "+ str(r) +" movies: ")
+    feedback_split = [int(i) for i in feedback.split(',')]
+        
     movieid_name_map = DataHandler.movieid_name_map
-    lda_sem_matx=DataHandler.load_movie_LDASpace_df()
-    new_query = rf.newQueryFromFeedBackLDA(movies, feedback,lda_sem_matx)#update
-    print([movieid_name_map[rf.nonwatchedList[i]] for i in new_query[0]][0:5])
+    allMovies = sorted(list(movieid_name_map.keys()))
+    movieWatchedindex = [allMovies.index(mid) for mid in movies]
+    lda_sem_matx=np.matrix(DataHandler.load_movie_LDASpace_df())
+    lda_sem_matx_subset = lda_sem_matx[list(set(range(len(allMovies)))-set(movieWatchedindex))]
+    
+    #new_query = rf.newQueryFromFeedBackLDA(movies, feedback,lda_sem_matx_subset)#update
+    new_query_remove = rf.newQueryFromFeedBackLDA(movies, feedback_split,lda_sem_matx_subset)#update
+   
+    print([movieid_name_map[rf.nonwatchedList[i]] for i in list(np.array(new_query_remove)[0])][0:5])
     
 def load_dataForClassifiers():
     return rf.loadPCASemantics()
