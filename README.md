@@ -1,1 +1,1 @@
-# cricket
+This project was a part of my course work on movie recommendation. The following core technical concepts were used in the entire project :: Principal Component Analysis, Singular Valued Decomposition, Tensor Decomposition, Latent Dirichlet Allocation, Relevance Feedback Mechanism, Locality Sensitive Hashing, Personalized Page Rank, KNN, SVM and Decision Trees 
